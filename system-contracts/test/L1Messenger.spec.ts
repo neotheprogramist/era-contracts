@@ -45,7 +45,7 @@ describe("L1Messenger tests", () => {
     });
   });
 
-  describe("sendL2ToL1Message", async () => {
+  describe("sendL2ToL1Log", async () => {
     it("should revert when not called by the system contract", async () => {
       const isService = true;
       const key = ethers.utils.hexlify(randomBytes(32));
@@ -54,10 +54,6 @@ describe("L1Messenger tests", () => {
         "This method require the caller to be system contract"
       );
     });
-
-    // TODO: previous ERROR (node) execution reverted: Error function_selector = 0x, data = 0x
-    // tmp fixed by changing L1Messenger.sol line 75 & 124 from
-    // txNumberInBlock: SYSTEM_CONTEXT_CONTRACT.txNumberInBlock() to fixed value
 
     it("should emit L2ToL1LogSent event when called by the system contract", async () => {
       const isService = true;
@@ -180,17 +176,51 @@ describe("L1Messenger tests", () => {
         .to.emit(l1Messenger, "BytecodeL1PublicationRequested")
         .withArgs(byteCodeHash);
     });
+
+    it("burn gas failure", async () => {
+      const bytecode = await ethers.provider.getCode(l1Messenger.address);
+      const bytecodeHash = ethers.utils.keccak256(bytecode);
+      await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
+    })
   });
 
-//   describe("publishPubdataAndClearState", async () => {
-//       it("should revert when not called by bootloader", async () => {
-//           const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad("0x01", 32);
-//           await expect(l1Messenger.connect(getWallets()[2]).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Callable only by the bootloader");
-//       });
+  // TODO: IN PROGRESS
+  // describe("publishPubdataAndClearState", async () => {
+  //     it("should revert when not called by bootloader", async () => {
+  //         const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad("0x01", 32);
+  //         await expect(l1Messenger.connect(getWallets()[2]).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Callable only by the bootloader");
+  //     });
 
-//       it("should revert Too many L2->L1 logs", async () => {
-//         const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad(ethers.constants.MaxUint256.toHexString(), 32);
-//         await expect(l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Too many L2->L1 logs");
-//       })
-//   });
+  //     it("should revert Too many L2->L1 logs", async () => {
+  //       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad(ethers.constants.MaxUint256.toHexString(), 32);
+  //       await expect(l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Too many L2->L1 logs");
+  //     })
+
+  //     it("in progress", async () => {
+  //       const isService = true;
+  //       const key = Buffer.alloc(32, 1);
+  //       const value = Buffer.alloc(32, 2);
+  //       const txNumberInBlock = 1;
+  //       const callResult = {
+  //         failure: false,
+  //         returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock])
+  //       };
+  //       await setResult("SystemContext", "txNumberInBlock", [], callResult);
+  //       await l1Messenger.connect(l1MessengerAccount).sendL2ToL1Log(isService, key, value);
+
+  //       // then sendToL1()
+  //       const message = Buffer.alloc(32, 3);
+  //       const txNumberInBlock2 = 1; 
+  //       const callResult2 = {
+  //         failure: false,
+  //         returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock2])
+  //       };
+  //       await setResult("SystemContext", "txNumberInBlock", [], callResult2);
+  //       await l1Messenger.connect(l1MessengerAccount).sendToL1(message);
+
+  //       const bytecode = await ethers.provider.getCode(l1Messenger.address);
+  //       const bytecodeHash = ethers.utils.keccak256(bytecode);
+  //       await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
+  //     })
+  // });
 });
