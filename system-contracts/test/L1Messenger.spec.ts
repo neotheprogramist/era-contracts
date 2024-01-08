@@ -2,10 +2,9 @@ import { ethers, network } from "hardhat";
 import { L1MessengerFactory } from "../typechain";
 import type { L1Messenger } from "../typechain"; 
 import { prepareEnvironment, setResult } from "./shared/mocks";
-import { deployContractOnAddress, getWallets } from "./shared/utils";
-import type { Wallet } from "zksync-web3";
+import { deployContractOnAddress, getCode, getWallets } from "./shared/utils";
+import { utils, type Wallet } from "zksync-web3";
 import {
-  TEST_DEPLOYER_SYSTEM_CONTRACT_ADDRESS,
   TEST_KNOWN_CODE_STORAGE_CONTRACT_ADDRESS,
   TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS,
   TEST_BOOTLOADER_FORMAL_ADDRESS
@@ -25,7 +24,7 @@ describe("L1Messenger tests", () => {
     wallet = getWallets()[0];
     await deployContractOnAddress(TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS, "L1Messenger");
     l1Messenger = L1MessengerFactory.connect(TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS, wallet);
-    l1MessengerAccount = await ethers.getImpersonatedSigner(TEST_DEPLOYER_SYSTEM_CONTRACT_ADDRESS);
+    l1MessengerAccount = await ethers.getImpersonatedSigner(TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS);
     knownCodeStorageAccount = await ethers.getImpersonatedSigner(TEST_KNOWN_CODE_STORAGE_CONTRACT_ADDRESS);
     bootloaderAccount = await ethers.getImpersonatedSigner(TEST_BOOTLOADER_FORMAL_ADDRESS);
   });
@@ -33,7 +32,7 @@ describe("L1Messenger tests", () => {
   after(async () => {
     await network.provider.request({
       method: "hardhat_stopImpersonatingAccount",
-      params: [TEST_DEPLOYER_SYSTEM_CONTRACT_ADDRESS],
+      params: [TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS],
     });
     await network.provider.request({
       method: "hardhat_stopImpersonatingAccount",
@@ -46,6 +45,7 @@ describe("L1Messenger tests", () => {
   });
 
   describe("sendL2ToL1Log", async () => {
+    
     it("should revert when not called by the system contract", async () => {
       const isService = true;
       const key = ethers.utils.hexlify(randomBytes(32));
@@ -177,11 +177,21 @@ describe("L1Messenger tests", () => {
         .withArgs(byteCodeHash);
     });
 
-    it("burn gas failure", async () => {
-      const bytecode = await ethers.provider.getCode(l1Messenger.address);
-      const bytecodeHash = ethers.utils.keccak256(bytecode);
-      await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
-    })
+    it("burn gas", async () => {
+      const bytecode = await getCode(l1Messenger.address);
+      const bytecodeHash = ethers.utils.hexlify(utils.hashBytecode(bytecode));
+      // 0x0100030199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
+
+      let buffer = Buffer.from(bytecodeHash.slice(2), 'hex');
+      buffer[2] = 0x01; 
+      const bytecodeHashFormatted = '0x' + buffer.toString('hex');
+      // 0x0100010199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
+
+      await expect(l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHashFormatted))
+        .to.emit(l1Messenger, "BytecodeL1PublicationRequested")
+        .withArgs(bytecodeHashFormatted);
+      
+    });
   });
 
   // TODO: IN PROGRESS
@@ -194,7 +204,7 @@ describe("L1Messenger tests", () => {
   //     it("should revert Too many L2->L1 logs", async () => {
   //       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad(ethers.constants.MaxUint256.toHexString(), 32);
   //       await expect(l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Too many L2->L1 logs");
-  //     })
+  //     });
 
   //     it("in progress", async () => {
   //       const isService = true;
@@ -219,8 +229,8 @@ describe("L1Messenger tests", () => {
   //       await l1Messenger.connect(l1MessengerAccount).sendToL1(message);
 
   //       const bytecode = await ethers.provider.getCode(l1Messenger.address);
-  //       const bytecodeHash = ethers.utils.keccak256(bytecode);
+  //       const bytecodeHash = utils.hashBytecode(bytecode);
   //       await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
-  //     })
+  //     });
   // });
 });

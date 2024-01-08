@@ -175,8 +175,7 @@ contract L1Messenger is IL1Messenger, ISystemContract {
 
         // We need to charge cost of hashing, as it will be used in `publishPubdataAndClearState`
         uint256 gasToPay = pubdataLen * gasPerPubdataBytes + sha256GasCost(bytecodeLen) + keccakGasCost(64);
-        uint32 tst = Utils.safeCastToU32(gasToPay);
-        // SystemContractHelper.burnGas(Utils.safeCastToU32(gasToPay));
+        SystemContractHelper.burnGas(Utils.safeCastToU32(gasToPay));
 
         emit BytecodeL1PublicationRequested(_bytecodeHash);
     }
