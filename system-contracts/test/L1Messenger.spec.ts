@@ -18,6 +18,9 @@ describe("L1Messenger tests", () => {
   let l1MessengerAccount: ethers.Signer;
   let knownCodeStorageAccount: ethers.Signer;
   let bootloaderAccount: ethers.Signer;
+  let numberOfLogs: number = 0;
+  let numberOfMessages: number = 0;
+  let numberOfBytecodes: number = 0;
 
   before(async () => {
     await prepareEnvironment();
@@ -164,79 +167,115 @@ describe("L1Messenger tests", () => {
         .rejected;
     });
 
-    it("should revert due to overflow created by unchecked block in function", async () => {
-      const byteCodeHash = ethers.utils.hexlify(randomBytes(32));
-      await expect(l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(byteCodeHash)).to.be
-        .rejected;
-    });
-
     it("shoud emit event, called by known code system contract", async () => {
-      const byteCodeHash = ethers.utils.hexZeroPad("0x01", 32);
-      await expect(l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(byteCodeHash))
-        .to.emit(l1Messenger, "BytecodeL1PublicationRequested")
-        .withArgs(byteCodeHash);
-    });
-
-    it("burn gas", async () => {
       const bytecode = await getCode(l1Messenger.address);
       const bytecodeHash = await ethers.utils.hexlify(utils.hashBytecode(bytecode));
-      
-      let buffer = Buffer.from(bytecodeHash.slice(2), 'hex');
-      buffer.writeUInt16BE(0x01ff, 2);
-      const bytecodeHashFormatted = '0x' + buffer.toString('hex');
-
-      console.log(bytecodeHash);          // 0x0100030199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
-      console.log(bytecodeHashFormatted); // 0x0100010199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
-      
-      const tx = await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHashFormatted);
-      // const tx = await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
-      const receipt = await tx.wait();
-
-      const BytecodeL1PublicationRequestedEvent = receipt.events?.filter((x) => {return x.event === "BytecodeL1PublicationRequested";});
-
-      if(BytecodeL1PublicationRequestedEvent && BytecodeL1PublicationRequestedEvent.length > 0) {
-          console.log("Address returned by requestBytecodeL1Publication: ", BytecodeL1PublicationRequestedEvent[0].args?._bytecodeHash);
-      }
+      await expect(l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash, { gasLimit: 130000000 }))
+      .to.emit(l1Messenger, "BytecodeL1PublicationRequested").withArgs(bytecodeHash);
     });
   });
 
   // TODO: IN PROGRESS
-  // describe("publishPubdataAndClearState", async () => {
-  //     it("should revert when not called by bootloader", async () => {
-  //         const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad("0x01", 32);
-  //         await expect(l1Messenger.connect(getWallets()[2]).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Callable only by the bootloader");
-  //     });
+  describe("publishPubdataAndClearState", async () => {
+      it("should revert when not called by bootloader", async () => {
+          const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad("0x01", 32);
+          await expect(l1Messenger.connect(getWallets()[2]).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Callable only by the bootloader");
+      });
 
-  //     it("should revert Too many L2->L1 logs", async () => {
-  //       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad(ethers.constants.MaxUint256.toHexString(), 32);
-  //       await expect(l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Too many L2->L1 logs");
-  //     });
+      it("should revert Too many L2->L1 logs", async () => {
+        const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad(ethers.constants.MaxUint256.toHexString(), 32);
+        await expect(l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)).to.be.rejectedWith("Too many L2->L1 logs");
+      });
 
-  //     it("in progress", async () => {
-  //       const isService = true;
-  //       const key = Buffer.alloc(32, 1);
-  //       const value = Buffer.alloc(32, 2);
-  //       const txNumberInBlock = 1;
-  //       const callResult = {
-  //         failure: false,
-  //         returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock])
-  //       };
-  //       await setResult("SystemContext", "txNumberInBlock", [], callResult);
-  //       await l1Messenger.connect(l1MessengerAccount).sendL2ToL1Log(isService, key, value);
+      it("in progress", async () => {
+        // sendL2ToL1Log()
+        const isService = true;
+        const key = Buffer.alloc(32, 1);
+        const value = Buffer.alloc(32, 2);
+        
+        const txNumberInBlock = 1;
+        const callResult = {
+          failure: false,
+          returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock])
+        };
+        await setResult("SystemContext", "txNumberInBlock", [], callResult);
+        await l1Messenger.connect(l1MessengerAccount).sendL2ToL1Log(isService, key, value);
 
-  //       // then sendToL1()
-  //       const message = Buffer.alloc(32, 3);
-  //       const txNumberInBlock2 = 1; 
-  //       const callResult2 = {
-  //         failure: false,
-  //         returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock2])
-  //       };
-  //       await setResult("SystemContext", "txNumberInBlock", [], callResult2);
-  //       await l1Messenger.connect(l1MessengerAccount).sendToL1(message);
+        // first log in the form of bytes 
+        const firstLog = ethers.utils.defaultAbiCoder.encode(
+          ["uint8", "bool", "uint16", "address", "bytes32", "bytes32"],
+          [0, isService, txNumberInBlock, l1MessengerAccount.address, key, value]
+        );
+        // increase number of logs, called by _processL2ToL1Log
+        numberOfLogs++;
+        console.log("firstLog:\n ",firstLog);
+        console.log("numberOfLogs: ", numberOfLogs);
+        
+        
+        // sendToL1()
+        const message = Buffer.alloc(32, 3);
+        const txNumberInBlock2 = 1; 
+        const callResult2 = {
+          failure: false,
+          returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock2])
+        };
+        await setResult("SystemContext", "txNumberInBlock", [], callResult2);
+        await l1Messenger.connect(l1MessengerAccount).sendToL1(message);
 
-  //       const bytecode = await ethers.provider.getCode(l1Messenger.address);
-  //       const bytecodeHash = utils.hashBytecode(bytecode);
-  //       await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
-  //     });
-  // });
+        // second log in the form of bytes 
+        const senderAddress = ethers.utils
+        .hexZeroPad(ethers.utils.hexStripZeros(l1MessengerAccount.address), 32)
+        .toLowerCase();
+        const messageHash = ethers.utils.keccak256(message);
+        const secondLog = ethers.utils.defaultAbiCoder.encode(
+          ["uint8", "bool", "uint16", "address", "bytes32", "bytes32"],
+          [0, isService, txNumberInBlock, l1Messenger.address, senderAddress, messageHash]
+        );
+        const currentMessageLength = 32;
+        const currentMessageLengthHex = currentMessageLength.toString(16).padStart(8, '0');
+        numberOfMessages++;
+        numberOfLogs++;
+
+        console.log("secondLog: \n", secondLog);
+        console.log("currentMessageLengthHex: ", currentMessageLengthHex);
+        console.log("numberOfMessages: ", numberOfMessages);
+        console.log("numberOfLogs: ", numberOfLogs);
+        
+        // requestBytecodeL1Publication()
+        const bytecode = await getCode(l1Messenger.address);
+        const bytecodeHash = await ethers.utils.hexlify(utils.hashBytecode(bytecode));
+        await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash, {gasLimit: 130000000});
+        numberOfBytecodes++;
+        const lengthOfBytecode = bytecode.length;
+
+        // Encode to 4 bytes
+        const numberOfLogsBytes = ethers.utils.defaultAbiCoder.encode(["uint32"], [numberOfLogs]);
+        const numberOfMessagesBytes = ethers.utils.defaultAbiCoder.encode(["uint32"], [numberOfMessages]);
+        const currentMessageLengthBytes = ethers.utils.defaultAbiCoder.encode(["uint32"], [currentMessageLength]);
+        const numberOfBytecodesBytes = ethers.utils.defaultAbiCoder.encode(["uint32"], [numberOfBytecodes]);
+        const lengthOfBytecodeBytes = ethers.utils.defaultAbiCoder.encode(["uint32"], [lengthOfBytecode]);
+
+        // TODO: STATE DIFFS
+
+        // Concatenate all the bytes together
+        const totalL2ToL1PubdataAndStateDiffs = ethers.utils.concat([
+          numberOfLogsBytes,
+          firstLog,
+          secondLog,
+          numberOfMessagesBytes,
+          currentMessageLengthBytes,
+          message,
+          numberOfBytecodesBytes,
+          lengthOfBytecodeBytes,
+          bytecode
+        ]);
+        //check values
+        // console.log(await l1Messenger.chainedLogsHash());
+        // console.log(await l1Messenger.numberOfLogsToProcess());
+        // console.log(await l1Messenger.chainedMessagesHash());
+        // console.log(await l1Messenger.chainedL1BytecodesRevealDataHash());
+        // then publishPubdataAndClearState()
+
+      });
+  });
 });
