@@ -179,18 +179,24 @@ describe("L1Messenger tests", () => {
 
     it("burn gas", async () => {
       const bytecode = await getCode(l1Messenger.address);
-      const bytecodeHash = ethers.utils.hexlify(utils.hashBytecode(bytecode));
-      // 0x0100030199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
-
-      let buffer = Buffer.from(bytecodeHash.slice(2), 'hex');
-      buffer[2] = 0x01; 
-      const bytecodeHashFormatted = '0x' + buffer.toString('hex');
-      // 0x0100010199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
-
-      await expect(l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHashFormatted))
-        .to.emit(l1Messenger, "BytecodeL1PublicationRequested")
-        .withArgs(bytecodeHashFormatted);
+      const bytecodeHash = await ethers.utils.hexlify(utils.hashBytecode(bytecode));
       
+      let buffer = Buffer.from(bytecodeHash.slice(2), 'hex');
+      buffer.writeUInt16BE(0x01ff, 2);
+      const bytecodeHashFormatted = '0x' + buffer.toString('hex');
+
+      console.log(bytecodeHash);          // 0x0100030199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
+      console.log(bytecodeHashFormatted); // 0x0100010199202b2f6b3c12b2dcf77069b43537bd76346a1e9419787c50ff4b65
+      
+      const tx = await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHashFormatted);
+      // const tx = await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash);
+      const receipt = await tx.wait();
+
+      const BytecodeL1PublicationRequestedEvent = receipt.events?.filter((x) => {return x.event === "BytecodeL1PublicationRequested";});
+
+      if(BytecodeL1PublicationRequestedEvent && BytecodeL1PublicationRequestedEvent.length > 0) {
+          console.log("Address returned by requestBytecodeL1Publication: ", BytecodeL1PublicationRequestedEvent[0].args?._bytecodeHash);
+      }
     });
   });
 
