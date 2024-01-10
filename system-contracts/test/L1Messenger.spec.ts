@@ -202,7 +202,7 @@ describe("L1Messenger tests", () => {
           returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock])
         };
         await setResult("SystemContext", "txNumberInBlock", [], callResult);
-        await l1Messenger.connect(l1MessengerAccount).sendL2ToL1Log(isService, key, value);
+        await(await l1Messenger.connect(l1MessengerAccount).sendL2ToL1Log(isService, key, value)).wait();
         
         const firstLog = ethers.utils.concat([
           ethers.utils.hexlify([0]),
@@ -224,7 +224,7 @@ describe("L1Messenger tests", () => {
           returnData: ethers.utils.defaultAbiCoder.encode(["uint16"], [txNumberInBlock2])
         };
         await setResult("SystemContext", "txNumberInBlock", [], callResult2);
-        await l1Messenger.connect(l1MessengerAccount).sendToL1(message);
+        await(await l1Messenger.connect(l1MessengerAccount).sendToL1(message)).wait();
 
         const senderAddress = ethers.utils
         .hexZeroPad(ethers.utils.hexStripZeros(l1MessengerAccount.address), 32)
@@ -250,7 +250,7 @@ describe("L1Messenger tests", () => {
         // requestBytecodeL1Publication()
         const bytecode = await getCode(l1Messenger.address);
         const bytecodeHash = await ethers.utils.hexlify(utils.hashBytecode(bytecode));
-        await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash, {gasLimit: 130000000});
+        await(await l1Messenger.connect(knownCodeStorageAccount).requestBytecodeL1Publication(bytecodeHash, {gasLimit: 130000000})).wait();
         numberOfBytecodes++;
         const lengthOfBytecode = bytecode.length;
         console.log("bytecodeLength: ", ethers.utils.hexlify(lengthOfBytecode));
@@ -275,9 +275,36 @@ describe("L1Messenger tests", () => {
         ]);
         console.log(ethers.utils.hexlify(totalL2ToL1PubdataAndStateDiffs));
         
+        // Sample data for _numberOfStateDiffs, _enumerationIndexSize, _stateDiffs, _compressedStateDiffs
+        const _numberOfStateDiffs = 10;
+        const _enumerationIndexSize = 1;
+        const _stateDiffs = ethers.utils.formatBytes32String("stateDiffs");
+        const _compressedStateDiffs = ethers.utils.formatBytes32String("compressedStateDiffs");
+
+        // Calculate the keccak256 hash of _stateDiffs
+        const stateDiffHash = ethers.utils.keccak256(_stateDiffs);
+
+        // tmp mock
+        const verifyCompressedStateDiffsResult = {
+          failure: false,
+          returnData: ethers.utils.defaultAbiCoder.encode(
+            ["bytes32"],
+            [stateDiffHash]
+          ),
+        };
+
+        await setResult("Compressor", "verifyCompressedStateDiffs",
+          [
+            _numberOfStateDiffs,
+            _enumerationIndexSize,
+            _stateDiffs,
+            _compressedStateDiffs
+          ], 
+          verifyCompressedStateDiffsResult
+        );
         
         // publishPubdataAndClearState()
-        await l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs);
+        await(await l1Messenger.connect(bootloaderAccount).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs, {gasLimit: 1000000000000000})).wait();
         
         numberOfLogs = 0;
         numberOfMessages = 0;
