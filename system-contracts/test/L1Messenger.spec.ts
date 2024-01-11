@@ -60,6 +60,7 @@ describe("L1Messenger tests", () => {
     });
 
     it("publishPubdataAndClearState passes correctly", async () => {
+      // ====================================================================================================
       // sendL2ToL1Log()
       const isService = true;
       const key = Buffer.alloc(32, 1);
@@ -85,6 +86,7 @@ describe("L1Messenger tests", () => {
       console.log("firstLog:\n ", ethers.utils.hexlify(firstLog));
       console.log("numberOfLogs: ", ethers.utils.hexlify(numberOfLogs));
 
+      // ====================================================================================================
       // sendToL1()
       const message = Buffer.alloc(32, 3);
       const txNumberInBlock2 = 1;
@@ -116,6 +118,7 @@ describe("L1Messenger tests", () => {
       console.log("lengthOfMessage: ", ethers.utils.hexlify(currentMessageLength));
       console.log("numberOfLogs: ", ethers.utils.hexlify(numberOfLogs));
 
+      // ====================================================================================================
       // requestBytecodeL1Publication()
       const bytecode = await getCode(l1Messenger.address);
       const bytecodeHash = await ethers.utils.hexlify(utils.hashBytecode(bytecode));
@@ -127,7 +130,8 @@ describe("L1Messenger tests", () => {
       numberOfBytecodes++;
       const lengthOfBytecode = bytecode.length;
 
-      // Concatenate all the bytes together
+      // ====================================================================================================
+      // Prepare data for publishPubdataAndClearState()
       const numberOfLogsBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfLogs), 4);
       const numberOfMessagesBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfMessages), 4);
       const currentMessageLengthBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(currentMessageLength), 4);
@@ -136,8 +140,8 @@ describe("L1Messenger tests", () => {
       
       console.log("length of bytecode", ethers.utils.hexlify(lengthOfBytecode));
 
-      // TODO: Get data for compressedStateDiffSize, enumerationIndexSize, compressedStateDiffs, numberOfStateDiffs, stateDiffs
-
+      // ====================================================================================================
+      // Prepare state diffs - taken from Compressor.spec.ts
       const stateDiffs = [
         {
           key: "0x1234567890123456789012345678901234567890123456789012345678901230",
@@ -172,15 +176,12 @@ describe("L1Messenger tests", () => {
       ];
       const encodedStateDiffs = encodeStateDiffs(stateDiffs);
       const compressedStateDiffs = compressStateDiffs(4, stateDiffs);
-
-      // // Sample data for _numberOfStateDiffs, _enumerationIndexSize, _stateDiffs, _compressedStateDiffs
       const numberOfStateDiffs = stateDiffs.length;
       const enumerationIndexSize = 4;
 
-      // // Calculate the keccak256 hash of _stateDiffs
+      // ====================================================================================================
+      // mocking compressor 
       const stateDiffHash = ethers.utils.keccak256(encodedStateDiffs);
-
-      // mock for compressor
       const verifyCompressedStateDiffsResult = {
         failure: false,
         returnData: ethers.utils.defaultAbiCoder.encode(
@@ -198,6 +199,9 @@ describe("L1Messenger tests", () => {
         ],
         verifyCompressedStateDiffsResult
       );
+
+      // ====================================================================================================
+      // Prepare state diffs data for publishPubdataAndClearState()
       const version = ethers.utils.hexZeroPad(ethers.utils.hexlify(1), 1);
       console.log("version: ", version);
 
@@ -216,6 +220,8 @@ describe("L1Messenger tests", () => {
 
       console.log("encodedStateDiffs: ", encodedStateDiffs);
         
+      // ====================================================================================================
+      // Prepare totalL2ToL1PubdataAndStateDiffs
       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.concat([
         numberOfLogsBytes,
         firstLog,
@@ -234,6 +240,11 @@ describe("L1Messenger tests", () => {
         encodedStateDiffs
       ]);
 
+      console.log("====================================================================");
+      console.log("totalL2ToL1PubdataAndStateDiffs: ", ethers.utils.hexlify(totalL2ToL1PubdataAndStateDiffs));
+      console.log("====================================================================");
+
+      // ====================================================================================================
       // publishPubdataAndClearState()
       await (
         await l1Messenger
