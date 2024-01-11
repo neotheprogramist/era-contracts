@@ -12,8 +12,8 @@ import {
   TWO_IN_256,
 } from "./shared/constants";
 import { expect } from "chai";
-import { BigNumber, type BytesLike } from "ethers";
-
+import { BigNumber } from "ethers";
+import type { BytesLike } from "ethers";
 
 describe("L1Messenger tests", () => {
   let l1Messenger: L1Messenger;
@@ -137,7 +137,7 @@ describe("L1Messenger tests", () => {
       const currentMessageLengthBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(currentMessageLength), 4);
       const numberOfBytecodesBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfBytecodes), 4);
       const lengthOfBytecodeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(lengthOfBytecode), 4);
-      
+
       console.log("length of bytecode", ethers.utils.hexlify(lengthOfBytecode));
 
       // ====================================================================================================
@@ -180,23 +180,17 @@ describe("L1Messenger tests", () => {
       const enumerationIndexSize = 4;
 
       // ====================================================================================================
-      // mocking compressor 
+      // mocking compressor
       const stateDiffHash = ethers.utils.keccak256(encodedStateDiffs);
       const verifyCompressedStateDiffsResult = {
         failure: false,
-        returnData: ethers.utils.defaultAbiCoder.encode(
-          ["bytes32"],
-          [stateDiffHash]
-        ),
+        returnData: ethers.utils.defaultAbiCoder.encode(["bytes32"], [stateDiffHash]),
       };
 
-      await setResult("Compressor", "verifyCompressedStateDiffs",
-        [
-          numberOfStateDiffs,
-          enumerationIndexSize,
-          encodedStateDiffs,
-          compressedStateDiffs
-        ],
+      await setResult(
+        "Compressor",
+        "verifyCompressedStateDiffs",
+        [numberOfStateDiffs, enumerationIndexSize, encodedStateDiffs, compressedStateDiffs],
         verifyCompressedStateDiffsResult
       );
 
@@ -207,7 +201,10 @@ describe("L1Messenger tests", () => {
 
       const compressedStateDiffsBuffer = ethers.utils.arrayify(compressedStateDiffs);
       const compressedStateDiffsLength = compressedStateDiffsBuffer.length;
-      const compressedStateDiffsSizeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(compressedStateDiffsLength), 3);
+      const compressedStateDiffsSizeBytes = ethers.utils.hexZeroPad(
+        ethers.utils.hexlify(compressedStateDiffsLength),
+        3
+      );
       console.log("compressedStateDiffsSizeBytes: ", compressedStateDiffsSizeBytes);
 
       const enumerationIndexSizeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(enumerationIndexSize), 1);
@@ -219,7 +216,7 @@ describe("L1Messenger tests", () => {
       console.log("numberOfStateDiffsBytes: ", numberOfStateDiffsBytes);
 
       console.log("encodedStateDiffs: ", encodedStateDiffs);
-        
+
       // ====================================================================================================
       // Prepare totalL2ToL1PubdataAndStateDiffs
       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.concat([
@@ -237,7 +234,7 @@ describe("L1Messenger tests", () => {
         enumerationIndexSizeBytes,
         compressedStateDiffs,
         numberOfStateDiffsBytes,
-        encodedStateDiffs
+        encodedStateDiffs,
       ]);
 
       console.log("====================================================================");
@@ -259,7 +256,7 @@ describe("L1Messenger tests", () => {
   });
 });
 
-// taken from Compressor.spec.ts, possibly move to utils 
+// taken from Compressor.spec.ts, possibly move to utils
 interface StateDiff {
   key: BytesLike;
   index: number;
