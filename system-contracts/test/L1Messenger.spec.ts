@@ -9,8 +9,11 @@ import {
   TEST_KNOWN_CODE_STORAGE_CONTRACT_ADDRESS,
   TEST_L1_MESSENGER_SYSTEM_CONTRACT_ADDRESS,
   TEST_BOOTLOADER_FORMAL_ADDRESS,
+  TWO_IN_256,
 } from "./shared/constants";
 import { expect } from "chai";
+import { BigNumber, type BytesLike } from "ethers";
+
 
 describe("L1Messenger tests", () => {
   let l1Messenger: L1Messenger;
@@ -123,7 +126,6 @@ describe("L1Messenger tests", () => {
       ).wait();
       numberOfBytecodes++;
       const lengthOfBytecode = bytecode.length;
-      // console.log("bytecodeLength: ", ethers.utils.hexlify(lengthOfBytecode));
 
       // Concatenate all the bytes together
       const numberOfLogsBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfLogs), 4);
@@ -131,6 +133,89 @@ describe("L1Messenger tests", () => {
       const currentMessageLengthBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(currentMessageLength), 4);
       const numberOfBytecodesBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfBytecodes), 4);
       const lengthOfBytecodeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(lengthOfBytecode), 4);
+      
+      console.log("length of bytecode", ethers.utils.hexlify(lengthOfBytecode));
+
+      // TODO: Get data for compressedStateDiffSize, enumerationIndexSize, compressedStateDiffs, numberOfStateDiffs, stateDiffs
+
+      const stateDiffs = [
+        {
+          key: "0x1234567890123456789012345678901234567890123456789012345678901230",
+          index: 0,
+          initValue: BigNumber.from("0x1234567890123456789012345678901234567890123456789012345678901231"),
+          finalValue: BigNumber.from("0x1234567890123456789012345678901234567890123456789012345678901230"),
+        },
+        {
+          key: "0x1234567890123456789012345678901234567890123456789012345678901232",
+          index: 1,
+          initValue: TWO_IN_256.sub(1),
+          finalValue: BigNumber.from(1),
+        },
+        {
+          key: "0x1234567890123456789012345678901234567890123456789012345678901234",
+          index: 0,
+          initValue: TWO_IN_256.div(2),
+          finalValue: BigNumber.from(1),
+        },
+        {
+          key: "0x1234567890123456789012345678901234567890123456789012345678901236",
+          index: 2323,
+          initValue: BigNumber.from("0x1234567890123456789012345678901234567890123456789012345678901237"),
+          finalValue: BigNumber.from("0x0239329298382323782378478237842378478237847237237872373272373272"),
+        },
+        {
+          key: "0x1234567890123456789012345678901234567890123456789012345678901238",
+          index: 2,
+          initValue: BigNumber.from(0),
+          finalValue: BigNumber.from(1),
+        },
+      ];
+      const encodedStateDiffs = encodeStateDiffs(stateDiffs);
+      const compressedStateDiffs = compressStateDiffs(4, stateDiffs);
+
+      // // Sample data for _numberOfStateDiffs, _enumerationIndexSize, _stateDiffs, _compressedStateDiffs
+      const numberOfStateDiffs = stateDiffs.length;
+      const enumerationIndexSize = 4;
+
+      // // Calculate the keccak256 hash of _stateDiffs
+      const stateDiffHash = ethers.utils.keccak256(encodedStateDiffs);
+
+      // mock for compressor
+      const verifyCompressedStateDiffsResult = {
+        failure: false,
+        returnData: ethers.utils.defaultAbiCoder.encode(
+          ["bytes32"],
+          [stateDiffHash]
+        ),
+      };
+
+      await setResult("Compressor", "verifyCompressedStateDiffs",
+        [
+          numberOfStateDiffs,
+          enumerationIndexSize,
+          encodedStateDiffs,
+          compressedStateDiffs
+        ],
+        verifyCompressedStateDiffsResult
+      );
+      const version = ethers.utils.hexZeroPad(ethers.utils.hexlify(1), 1);
+      console.log("version: ", version);
+
+      const compressedStateDiffsBuffer = ethers.utils.arrayify(compressedStateDiffs);
+      const compressedStateDiffsLength = compressedStateDiffsBuffer.length;
+      const compressedStateDiffsSizeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(compressedStateDiffsLength), 3);
+      console.log("compressedStateDiffsSizeBytes: ", compressedStateDiffsSizeBytes);
+
+      const enumerationIndexSizeBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(enumerationIndexSize), 1);
+      console.log("enumerationIndexSizeBytes: ", enumerationIndexSizeBytes);
+
+      console.log("compressedStateDiffs: ", compressedStateDiffs);
+
+      const numberOfStateDiffsBytes = ethers.utils.hexZeroPad(ethers.utils.hexlify(numberOfStateDiffs), 4);
+      console.log("numberOfStateDiffsBytes: ", numberOfStateDiffsBytes);
+
+      console.log("encodedStateDiffs: ", encodedStateDiffs);
+        
       const totalL2ToL1PubdataAndStateDiffs = ethers.utils.concat([
         numberOfLogsBytes,
         firstLog,
@@ -141,44 +226,19 @@ describe("L1Messenger tests", () => {
         numberOfBytecodesBytes,
         lengthOfBytecodeBytes,
         bytecode,
+        version,
+        compressedStateDiffsSizeBytes,
+        enumerationIndexSizeBytes,
+        compressedStateDiffs,
+        numberOfStateDiffsBytes,
+        encodedStateDiffs
       ]);
-      console.log("length of bytecode", ethers.utils.hexlify(lengthOfBytecode));
-
-      // TODO: Get data for compressedStateDiffSize, enumerationIndexSize, compressedStateDiffs, numberOfStateDiffs, stateDiffs
-
-      // // Sample data for _numberOfStateDiffs, _enumerationIndexSize, _stateDiffs, _compressedStateDiffs
-      // const _numberOfStateDiffs = 10;
-      // const _enumerationIndexSize = 1;
-      // const _stateDiffs = ethers.utils.formatBytes32String("stateDiffs");
-      // const _compressedStateDiffs = ethers.utils.formatBytes32String("compressedStateDiffs");
-
-      // // Calculate the keccak256 hash of _stateDiffs
-      // const stateDiffHash = ethers.utils.keccak256(_stateDiffs);
-
-      // possibly needed mock for compressor tmp
-      // const verifyCompressedStateDiffsResult = {
-      //   failure: false,
-      //   returnData: ethers.utils.defaultAbiCoder.encode(
-      //     ["bytes32"],
-      //     [stateDiffHash]
-      //   ),
-      // };
-
-      // await setResult("Compressor", "verifyCompressedStateDiffs",
-      //   [
-      //     _numberOfStateDiffs,
-      //     _enumerationIndexSize,
-      //     _stateDiffs,
-      //     _compressedStateDiffs
-      //   ],
-      //   verifyCompressedStateDiffsResult
-      // );
 
       // publishPubdataAndClearState()
       await (
         await l1Messenger
           .connect(bootloaderAccount)
-          .publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs, { gasLimit: 1000000000 })
+          .publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs, { gasLimit: 10000000 })
       ).wait();
 
       numberOfLogs = 0;
@@ -187,3 +247,74 @@ describe("L1Messenger tests", () => {
     });
   });
 });
+
+// taken from Compressor.spec.ts, possibly move to utils 
+interface StateDiff {
+  key: BytesLike;
+  index: number;
+  initValue: BigNumber;
+  finalValue: BigNumber;
+}
+
+function encodeStateDiffs(stateDiffs: StateDiff[]): string {
+  const rawStateDiffs = [];
+  for (const stateDiff of stateDiffs) {
+    rawStateDiffs.push(
+      ethers.utils.solidityPack(
+        ["address", "bytes32", "bytes32", "uint64", "uint256", "uint256", "bytes"],
+        [
+          ethers.constants.AddressZero,
+          ethers.constants.HashZero,
+          stateDiff.key,
+          stateDiff.index,
+          stateDiff.initValue,
+          stateDiff.finalValue,
+          "0x" + "00".repeat(116),
+        ]
+      )
+    );
+  }
+  return ethers.utils.hexlify(ethers.utils.concat(rawStateDiffs));
+}
+
+function compressStateDiffs(enumerationIndexSize: number, stateDiffs: StateDiff[]): string {
+  let num_initial = 0;
+  const initial = [];
+  const repeated = [];
+  for (const stateDiff of stateDiffs) {
+    const addition = stateDiff.finalValue.sub(stateDiff.initValue).add(TWO_IN_256).mod(TWO_IN_256);
+    const subtraction = stateDiff.initValue.sub(stateDiff.finalValue).add(TWO_IN_256).mod(TWO_IN_256);
+    let op = 3;
+    let min = stateDiff.finalValue;
+    if (addition.lt(min)) {
+      min = addition;
+      op = 1;
+    }
+    if (subtraction.lt(min)) {
+      min = subtraction;
+      op = 2;
+    }
+    if (min.gte(BigNumber.from(2).pow(248))) {
+      min = stateDiff.finalValue;
+      op = 0;
+    }
+    let len = 0;
+    const minHex = min.eq(0) ? "0x" : min.toHexString();
+    if (op > 0) {
+      len = (minHex.length - 2) / 2;
+    }
+    const metadata = (len << 3) + op;
+    const enumerationIndexType = "uint" + (enumerationIndexSize * 8).toString();
+    if (stateDiff.index === 0) {
+      num_initial += 1;
+      initial.push(ethers.utils.solidityPack(["bytes32", "uint8", "bytes"], [stateDiff.key, metadata, minHex]));
+    } else {
+      repeated.push(
+        ethers.utils.solidityPack([enumerationIndexType, "uint8", "bytes"], [stateDiff.index, metadata, minHex])
+      );
+    }
+  }
+  return ethers.utils.hexlify(
+    ethers.utils.concat([ethers.utils.solidityPack(["uint16"], [num_initial]), ...initial, ...repeated])
+  );
+}
