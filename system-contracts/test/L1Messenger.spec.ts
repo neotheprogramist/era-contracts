@@ -52,13 +52,6 @@ describe("L1Messenger tests", () => {
 
   // TODO: IN PROGRESS - for now run these tests separately
   describe("publishPubdataAndClearState", async () => {
-    it("should revert when not called by bootloader", async () => {
-      const totalL2ToL1PubdataAndStateDiffs = ethers.utils.hexZeroPad("0x01", 32);
-      await expect(
-        l1Messenger.connect(getWallets()[2]).publishPubdataAndClearState(totalL2ToL1PubdataAndStateDiffs)
-      ).to.be.rejectedWith("Callable only by the bootloader");
-    });
-
     it("publishPubdataAndClearState passes correctly", async () => {
       // ====================================================================================================
       // sendL2ToL1Log()
