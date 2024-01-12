@@ -229,10 +229,33 @@ describe("L1Messenger tests", () => {
         numberOfStateDiffsBytes,
         encodedStateDiffs,
       ]);
+      
 
       console.log("====================================================================");
-      console.log("totalL2ToL1PubdataAndStateDiffs: ", ethers.utils.hexlify(totalL2ToL1PubdataAndStateDiffs));
+      
+      console.log("length numberOfLogsBytes: ", numberOfLogsBytes);
+      console.log("length firstLog: ", firstLog.length);
+      console.log("length secondLog: ", secondLog.length);
+      console.log("length numberOfMessagesBytes: ", numberOfMessagesBytes);
+      console.log("length currentMessageLengthBytes: ", currentMessageLengthBytes);
+      console.log("length message: ", message.length);
+      console.log("length numberOfBytecodesBytes: ", numberOfBytecodesBytes);
+      console.log("length lengthOfBytecodeBytes: ", lengthOfBytecodeBytes);
+      console.log("length bytecode: ", bytecode.length);
+      console.log("length version: ", version);
+      console.log("length compressedStateDiffsSizeBytes: ", compressedStateDiffsSizeBytes);
+      console.log("length enumerationIndexSizeBytes: ", enumerationIndexSizeBytes);
+      console.log("length compressedStateDiffs: ", compressedStateDiffs.length);
+      console.log("length numberOfStateDiffsBytes: ", numberOfStateDiffsBytes);
+      console.log("length encodedStateDiffs: ", encodedStateDiffs.length);
+
       console.log("====================================================================");
+      console.log("length totalL2ToL1PubdataAndStateDiffs: ", ethers.utils.hexlify(totalL2ToL1PubdataAndStateDiffs).length);
+      
+
+      // console.log("====================================================================");
+      // console.log("totalL2ToL1PubdataAndStateDiffs: ", ethers.utils.hexlify(totalL2ToL1PubdataAndStateDiffs));
+      // console.log("====================================================================");
 
       // ====================================================================================================
       // publishPubdataAndClearState()
