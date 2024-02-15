@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  app:
+    image: node:20
+    container_name: "era-contracts"
+    command: tail -f /dev/null # Keeps the container running
+    volumes:
+      - .:/usr/src/app # Mounts the project directory to the container
+    working_dir: /usr/src/app
+    ports:
+      - "3000:3000" # Adjust if your app uses a different port
+    environment:
+      - NODE_ENV=development
+    tty: true # Keeps the container running and allows interactive commands
