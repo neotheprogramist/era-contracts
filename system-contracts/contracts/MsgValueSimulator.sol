@@ -40,7 +40,6 @@ contract MsgValueSimulator is ISystemContract {
     /// @param _data The calldata to be passed to the callee.
     /// @return The return data from the callee.
     fallback(bytes calldata _data) external onlySystemCall returns (bytes memory) {
-        emit StartOfTheTest(true);
         (uint256 value, bool isSystemCall, address to) = _getAbiParams();
         // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
         emit AbiParams(value, isSystemCall, to);
