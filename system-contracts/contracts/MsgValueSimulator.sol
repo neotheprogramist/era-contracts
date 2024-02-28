@@ -26,9 +26,12 @@ contract MsgValueSimulator is ISystemContract {
     /// the flag whether or not the call should be a system one.
     /// The second ABI params contains the callee.
     function _getAbiParams() internal view returns (uint256 value, bool isSystemCall, address to) {
+        // value = SystemContractHelper.getExtraAbiData(0);
+        // uint256 addressAsUint = SystemContractHelper.getExtraAbiData(1);
+        // uint256 mask = SystemContractHelper.getExtraAbiData(2);
         value = SystemContractHelper.getExtraAbiData(0);
-        uint256 addressAsUint = SystemContractHelper.getExtraAbiData(1);
-        uint256 mask = SystemContractHelper.getExtraAbiData(2);
+        uint256 addressAsUint = 2;
+        uint256 mask = 1;
 
         isSystemCall = (mask & MSG_VALUE_SIMULATOR_IS_SYSTEM_BIT) != 0;
 
@@ -41,26 +44,28 @@ contract MsgValueSimulator is ISystemContract {
     /// @return The return data from the callee.
     fallback(bytes calldata _data) external onlySystemCall returns (bytes memory) {
         (uint256 value, bool isSystemCall, address to) = _getAbiParams();
-        // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
-        emit AbiParams(value, isSystemCall, to);
-        require(to != address(this), "MsgValueSimulator calls itself");
+        // emit AbiParams(1, isSystemCall, to); // this passes
+        emit AbiParams(value, isSystemCall, to); // but this does now
 
-        if (value != 0) {
-            (bool success, ) = address(ETH_TOKEN_SYSTEM_CONTRACT).call(
-                abi.encodeCall(ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo, (msg.sender, to, value))
-            );
+        // // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
+        // require(to != address(this), "MsgValueSimulator calls itself");
 
-            // If the transfer of ETH fails, we do the most Ethereum-like behaviour in such situation: revert(0,0)
-            if (!success) {
-                assembly {
-                    revert(0, 0)
-                }
-            }
-        }
+        // if (value != 0) {
+        //     (bool success, ) = address(ETH_TOKEN_SYSTEM_CONTRACT).call(
+        //         abi.encodeCall(ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo, (msg.sender, to, value))
+        //     );
 
-        // For the next call this `msg.value` will be used.
-        SystemContractHelper.setValueForNextFarCall(Utils.safeCastToU128(value));
+        //     // If the transfer of ETH fails, we do the most Ethereum-like behaviour in such situation: revert(0,0)
+        //     if (!success) {
+        //         assembly {
+        //             revert(0, 0)
+        //         }
+        //     }
+        // }
 
-        return EfficientCall.mimicCall(gasleft(), to, _data, msg.sender, false, isSystemCall);
+        // // For the next call this `msg.value` will be used.
+        // SystemContractHelper.setValueForNextFarCall(Utils.safeCastToU128(value));
+
+        // return EfficientCall.mimicCall(gasleft(), to, _data, msg.sender, false, isSystemCall);
     }
 }
