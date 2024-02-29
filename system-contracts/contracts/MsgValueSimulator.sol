@@ -26,12 +26,9 @@ contract MsgValueSimulator is ISystemContract {
     /// the flag whether or not the call should be a system one.
     /// The second ABI params contains the callee.
     function _getAbiParams() internal view returns (uint256 value, bool isSystemCall, address to) {
-        // value = SystemContractHelper.getExtraAbiData(0);
-        // uint256 addressAsUint = SystemContractHelper.getExtraAbiData(1);
-        // uint256 mask = SystemContractHelper.getExtraAbiData(2);
         value = SystemContractHelper.getExtraAbiData(0);
-        uint256 addressAsUint = 2;
-        uint256 mask = 1;
+        uint256 addressAsUint = SystemContractHelper.getExtraAbiData(1);
+        uint256 mask = SystemContractHelper.getExtraAbiData(2);
 
         isSystemCall = (mask & MSG_VALUE_SIMULATOR_IS_SYSTEM_BIT) != 0;
 
@@ -63,9 +60,9 @@ contract MsgValueSimulator is ISystemContract {
         //     }
         // }
 
-        // // For the next call this `msg.value` will be used.
-        // SystemContractHelper.setValueForNextFarCall(Utils.safeCastToU128(value));
+        // For the next call this `msg.value` will be used.
+        SystemContractHelper.setValueForNextFarCall(Utils.safeCastToU128(value));
 
-        // return EfficientCall.mimicCall(gasleft(), to, _data, msg.sender, false, isSystemCall);
+        return EfficientCall.mimicCall(gasleft(), to, _data, msg.sender, false, isSystemCall);
     }
 }
