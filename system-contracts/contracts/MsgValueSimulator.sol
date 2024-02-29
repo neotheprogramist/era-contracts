@@ -17,9 +17,6 @@ import {MSG_VALUE_SIMULATOR_IS_SYSTEM_BIT, ETH_TOKEN_SYSTEM_CONTRACT} from "./Co
  * call with the same msg.sender.
  */
 contract MsgValueSimulator is ISystemContract {
-    event AbiParams(uint256 value, bool isSystemCall, address to);
-    event StartOfTheTest(bool isStart);
-
     /// @notice Extract value, isSystemCall and to from the extraAbi params.
     /// @dev The contract accepts value, the callee and whether the call should be a system one via its ABI params.
     /// @dev The first ABI param contains the value in the [0..127] bits. The 128th contains
@@ -41,8 +38,6 @@ contract MsgValueSimulator is ISystemContract {
     /// @return The return data from the callee.
     fallback(bytes calldata _data) external onlySystemCall returns (bytes memory) {
         (uint256 value, bool isSystemCall, address to) = _getAbiParams();
-        // emit AbiParams(value, isSystemCall, msg.sender);
-        require(msg.sender == address(0xBEEF), "msg.sender is different than expected"); // TMP
 
         // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
         require(to != address(this), "MsgValueSimulator calls itself");
