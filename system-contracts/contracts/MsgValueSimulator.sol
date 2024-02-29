@@ -41,24 +41,24 @@ contract MsgValueSimulator is ISystemContract {
     /// @return The return data from the callee.
     fallback(bytes calldata _data) external onlySystemCall returns (bytes memory) {
         (uint256 value, bool isSystemCall, address to) = _getAbiParams();
-        // emit AbiParams(1, isSystemCall, to); // this passes
-        emit AbiParams(value, isSystemCall, to); // but this does now
+        emit AbiParams(value, isSystemCall, msg.sender);
+        require(to == address(0x000000000000000000000000000000000000bEEF), "msg.sender is different than expected");
 
-        // // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
-        // require(to != address(this), "MsgValueSimulator calls itself");
+        // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
+        require(to != address(this), "MsgValueSimulator calls itself");
 
-        // if (value != 0) {
-        //     (bool success, ) = address(ETH_TOKEN_SYSTEM_CONTRACT).call(
-        //         abi.encodeCall(ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo, (msg.sender, to, value))
-        //     );
+        if (value != 0) {
+            (bool success, ) = address(ETH_TOKEN_SYSTEM_CONTRACT).call(
+                abi.encodeCall(ETH_TOKEN_SYSTEM_CONTRACT.transferFromTo, (msg.sender, to, value))
+            );
 
-        //     // If the transfer of ETH fails, we do the most Ethereum-like behaviour in such situation: revert(0,0)
-        //     if (!success) {
-        //         assembly {
-        //             revert(0, 0)
-        //         }
-        //     }
-        // }
+            // If the transfer of ETH fails, we do the most Ethereum-like behaviour in such situation: revert(0,0)
+            if (!success) {
+                assembly {
+                    revert(0, 0)
+                }
+            }
+        }
 
         // For the next call this `msg.value` will be used.
         SystemContractHelper.setValueForNextFarCall(Utils.safeCastToU128(value));
