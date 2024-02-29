@@ -41,8 +41,8 @@ contract MsgValueSimulator is ISystemContract {
     /// @return The return data from the callee.
     fallback(bytes calldata _data) external onlySystemCall returns (bytes memory) {
         (uint256 value, bool isSystemCall, address to) = _getAbiParams();
-        emit AbiParams(value, isSystemCall, msg.sender);
-        require(to == address(0x000000000000000000000000000000000000bEEF), "msg.sender is different than expected");
+        // emit AbiParams(value, isSystemCall, msg.sender);
+        require(msg.sender == address(0xBEEF), "msg.sender is different than expected"); // TMP
 
         // Prevent mimic call to the MsgValueSimulator to prevent an unexpected change of callee.
         require(to != address(this), "MsgValueSimulator calls itself");
