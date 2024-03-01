@@ -18,31 +18,27 @@ describe("MsgValueSimulator tests", () => {
   let mockContract: MockContract;
   let l2EthToken: L2EthToken;
   const wallet = getWallets()[0];
+  const msgSender = "0x000000000000000000000000000000000000beef";
 
   before(async () => {
+    // Prepare environment
     await prepareEnvironment();
     await deployContractOnAddress(TEST_MSG_VALUE_SYSTEM_CONTRACT_ADDRESS, "MsgValueSimulator");
-
+    await deployContractOnAddress(TEST_ETH_TOKEN_SYSTEM_CONTRACT_ADDRESS, "L2EthToken");
     mockContract = (await deployContract("MockContract")) as MockContract;
 
+    // Prepare MsgValueSimulator
     messageValueSimulator = MsgValueSimulatorFactory.connect(TEST_MSG_VALUE_SYSTEM_CONTRACT_ADDRESS, wallet);
     const extraAbiCallerBytecode = await loadZasmBytecode("ExtraAbiCaller", "test-contracts");
     await setCode(EXTRA_ABI_CALLER_ADDRESS, extraAbiCallerBytecode);
     extraAbiCaller = new Contract(EXTRA_ABI_CALLER_ADDRESS, [], wallet);
 
-    await deployContractOnAddress(TEST_ETH_TOKEN_SYSTEM_CONTRACT_ADDRESS, "L2EthToken");
+    // Prepare ETH token
     l2EthToken = L2EthTokenFactory.connect(TEST_ETH_TOKEN_SYSTEM_CONTRACT_ADDRESS, wallet);
 
     // Mint some tokens to the wallet
     const bootloaderAccount = await hardhat.ethers.getImpersonatedSigner(TEST_BOOTLOADER_FORMAL_ADDRESS);
-    await (
-      await l2EthToken.connect(bootloaderAccount).mint(wallet.address, hardhat.ethers.utils.parseEther("10.0"))
-    ).wait();
-    await (
-      await l2EthToken
-        .connect(bootloaderAccount)
-        .mint("0x000000000000000000000000000000000000beef", hardhat.ethers.utils.parseEther("10.0"))
-    ).wait();
+    await (await l2EthToken.connect(bootloaderAccount).mint(msgSender, BigNumber.from(2).pow(128))).wait();
 
     await network.provider.request({
       method: "hardhat_stopImpersonatingAccount",
@@ -51,133 +47,147 @@ describe("MsgValueSimulator tests", () => {
   });
 
   it("send 1 ETH", async () => {
-    const value = 2137n;
-    const balanceBefore = await l2EthToken.balanceOf(wallet.address);
-    expect(l2EthToken.address).to.equal("0x000000000000000000000000000000000000900a");
-    expect(wallet.address).to.equal("0x36615Cf349d7F6344891B1e7CA7C72883F5dc049");
+    // load state before execution
+    const value = 1000000000000000000n;
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
 
+    // transfer 1 ETH to the contract
+    // extraAbi -> messageValueSimulator -> mockContract
     await expect(
       extraAbiCaller.connect(wallet).fallback({
         data: encodeExtraAbiCallerCalldata(
           messageValueSimulator.address,
           BigNumber.from(0),
           [value.toString(), mockContract.address, "0"],
-          "0x01ca"
+          "0x"
         ),
       })
     )
-      .to.emit(messageValueSimulator, "S")
-      .withArgs(wallet.address);
+      .to.emit(mockContract, "Called")
+      .withArgs(value, "0x");
 
-    //   .to.emit(mockContract, "Called")
-    //   .withArgs("2", "0x01ca");
-
-    const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-    console.log("balanceBefore", balanceBefore.toString());
-    console.log("balanceAfter", balanceAfter.toString());
-    // expect(balanceBefore.sub(value)).to.equal(balanceAfter);
+    // check state after execution
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore.sub(value)).to.equal(balanceAfter);
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore.add(value)).to.equal(contractBalanceAfter);
   });
 
-  // it("send 0 ETH", async () => {
-  //   const value = 0;
-  //   const balanceBefore = await hardhat.ethers.provider.getBalance(extraAbiCaller.address);
+  it("send 0 ETH", async () => {
+    const value = 0;
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
 
-  //   await expect(
-  //     extraAbiCaller.fallback({
-  //       data: encodeExtraAbiCallerCalldata(
-  //         messageValueSimulator.address,
-  //         BigNumber.from(0),
-  //         [value.toString(), mockContract.address, "0"],
-  //         "0x01ca"
-  //       ),
-  //     })
-  //   )
-  //     .to.emit(mockContract, "Called")
-  //     .withArgs(value, "0x01ca");
+    await expect(
+      extraAbiCaller.fallback({
+        data: encodeExtraAbiCallerCalldata(
+          messageValueSimulator.address,
+          BigNumber.from(0),
+          [value.toString(), mockContract.address, "0"],
+          "0x"
+        ),
+      })
+    )
+      .to.emit(mockContract, "Called")
+      .withArgs(value, "0x");
 
-  //   const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-  //   // expect(balanceBefore.sub(value)).to.equal(balanceAfter);
-  // });
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore.sub(value)).to.equal(balanceAfter);
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore.add(value)).to.equal(contractBalanceAfter);
+  });
 
-  // it("send 1 wei", async () => {
-  //   const value = 1;
-  //   const balanceBefore = await hardhat.ethers.provider.getBalance(extraAbiCaller.address);
+  it("send 1 wei", async () => {
+    const value = 1;
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
 
-  //   await expect(
-  //     extraAbiCaller.fallback({
-  //       data: encodeExtraAbiCallerCalldata(
-  //         messageValueSimulator.address,
-  //         BigNumber.from(0),
-  //         [value.toString(), mockContract.address, "0"],
-  //         "0x01ca"
-  //       ),
-  //     })
-  //   )
-  //     // .to.emit(messageValueSimulator, "AbiParams")
-  //     // .withArgs(1000000000000000000n, false, 0xbeefn);
-  //     .to.emit(mockContract, "Called")
-  //     .withArgs(value, "0x01ca");
+    await expect(
+      extraAbiCaller.fallback({
+        data: encodeExtraAbiCallerCalldata(
+          messageValueSimulator.address,
+          BigNumber.from(0),
+          [value.toString(), mockContract.address, "0"],
+          "0x"
+        ),
+      })
+    )
+      .to.emit(mockContract, "Called")
+      .withArgs(value, "0x");
 
-  //   const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-  //   // expect(balanceBefore.sub(value)).to.equal(balanceAfter);
-  // });
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore.sub(value)).to.equal(balanceAfter);
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore.add(value)).to.equal(contractBalanceAfter);
+  });
 
-  // it("send 2^127 wei", async () => {
-  //   const value = BigNumber.from(2).pow(127);
-  //   const balanceBefore = await hardhat.ethers.provider.getBalance(extraAbiCaller.address);
+  it("send 2^127 wei", async () => {
+    const value = BigNumber.from(2).pow(127);
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
 
-  //   await expect(
-  //     extraAbiCaller.fallback({
-  //       data: encodeExtraAbiCallerCalldata(
-  //         messageValueSimulator.address,
-  //         BigNumber.from(0),
-  //         [value.toString(), mockContract.address, "0"],
-  //         "0x01ca"
-  //       ),
-  //     })
-  //   )
-  //     .to.emit(mockContract, "Called")
-  //     .withArgs(value, "0x01ca");
+    await expect(
+      extraAbiCaller.fallback({
+        data: encodeExtraAbiCallerCalldata(
+          messageValueSimulator.address,
+          BigNumber.from(0),
+          [value.toString(), mockContract.address, "0"],
+          "0x"
+        ),
+      })
+    )
+      .to.emit(mockContract, "Called")
+      .withArgs(value, "0x");
 
-  //   const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-  //   // expect(balanceBefore.sub(value)).to.equal(balanceAfter);
-  // });
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore.sub(value)).to.equal(balanceAfter);
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore.add(value)).to.equal(contractBalanceAfter);
+  });
 
-  // it("send with reentry", async () => {
-  //   const balanceBefore = await hardhat.ethers.provider.getBalance(extraAbiCaller.address);
+  it("revert with reentry", async () => {
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
 
-  //   await expect(
-  //     extraAbiCaller.fallback({
-  //       data: encodeExtraAbiCallerCalldata(
-  //         messageValueSimulator.address,
-  //         BigNumber.from(0),
-  //         ["0x1", messageValueSimulator.address, "0"],
-  //         "0x01ca"
-  //       ),
-  //     })
-  //   ).to.be.reverted;
+    await expect(
+      extraAbiCaller.fallback({
+        data: encodeExtraAbiCallerCalldata(
+          messageValueSimulator.address,
+          BigNumber.from(0),
+          ["0x1", messageValueSimulator.address, "0"],
+          "0x"
+        ),
+      })
+    ).to.be.reverted;
 
-  //   const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-  //   expect(balanceBefore).to.equal(balanceAfter);
-  // });
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore).to.equal(balanceAfter);
 
-  // it("send more than balance", async () => {
-  //   const balanceBefore = await hardhat.ethers.provider.getBalance(extraAbiCaller.address);
-  //   const value = balanceBefore.add(1);
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore).to.equal(contractBalanceAfter);
+  });
 
-  //   await expect(
-  //     extraAbiCaller.fallback({
-  //       data: encodeExtraAbiCallerCalldata(
-  //         messageValueSimulator.address,
-  //         BigNumber.from(0),
-  //         [value.toString(), mockContract.address, "0"],
-  //         "0x01ca"
-  //       ),
-  //     })
-  //   );
-  //   // .to.be.reverted;
+  it("revert more than balance", async () => {
+    const balanceBefore = await l2EthToken.balanceOf(msgSender);
+    const contractBalanceBefore = await l2EthToken.balanceOf(mockContract.address);
+    const value = balanceBefore.add(1);
 
-  //   const balanceAfter = await l2EthToken.balanceOf(wallet.address);
-  //   expect(balanceBefore).to.equal(balanceAfter);
-  // });
+    await expect(
+      extraAbiCaller.fallback({
+        data: encodeExtraAbiCallerCalldata(
+          messageValueSimulator.address,
+          BigNumber.from(0),
+          [value.toString(), mockContract.address, "0"],
+          "0x"
+        ),
+      })
+    ).to.be.reverted;
+
+    const balanceAfter = await l2EthToken.balanceOf(msgSender);
+    expect(balanceBefore).to.equal(balanceAfter);
+
+    const contractBalanceAfter = await l2EthToken.balanceOf(mockContract.address);
+    expect(contractBalanceBefore).to.equal(contractBalanceAfter);
+  });
 });
