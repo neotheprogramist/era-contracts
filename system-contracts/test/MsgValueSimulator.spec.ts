@@ -1,4 +1,5 @@
-import { L2EthToken, L2EthTokenFactory, MockContract, MsgValueSimulator, MsgValueSimulatorFactory } from "../typechain";
+import type { L2EthToken, MockContract, MsgValueSimulator } from "../typechain";
+import { L2EthTokenFactory, MsgValueSimulatorFactory } from "../typechain";
 import { deployContract, deployContractOnAddress, getWallets, loadZasmBytecode, setCode } from "./shared/utils";
 import {
   TEST_BOOTLOADER_FORMAL_ADDRESS,
