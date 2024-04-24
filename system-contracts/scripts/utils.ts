@@ -7,6 +7,7 @@ import type { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import type { BigNumberish, BytesLike } from "ethers";
 import { BigNumber, ethers } from "ethers";
 import * as fs from "fs";
+import * as fsPr from "fs/promises";
 import { hashBytecode } from "zksync-web3/build/src/utils";
 import type { YulContractDescription, ZasmContractDescription } from "./constants";
 import { Language, SYSTEM_CONTRACTS } from "./constants";
