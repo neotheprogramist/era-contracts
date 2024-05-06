@@ -77,7 +77,7 @@ contract DeployErc20Script is Script {
                 mint: token.mint
             });
             console.log("Token deployed at:", tokenAddress);
-            token.addr = tokenAddress;
+            config.tokens[i].addr = tokenAddress;
         }
     }
 
@@ -100,9 +100,8 @@ contract DeployErc20Script is Script {
 
         if (mint > 0) {
             vm.broadcast();
-            (bool success, ) = tokenAddress.call(
-                abi.encodeWithSignature("mint(address,uint256)", config.deployerAddress, mint)
-            );
+            (bool success,) =
+                tokenAddress.call(abi.encodeWithSignature("mint(address,uint256)", config.deployerAddress, mint));
             require(success, "Mint failed");
         }
 
