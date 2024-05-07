@@ -22,6 +22,7 @@ contract HyperchainDeployer is L1ContractDeployer {
         deployScript = new RegisterHyperchainsScript();
 
         hyperchainsToDeploy.push(getDefaultHyperchainDeployInfo("era", eraHyperchainId, ETH_TOKEN_ADDRESS));
+        hyperchainIds.push(eraHyperchainId);
 
         saveHyperchainConfig();
 
@@ -31,7 +32,9 @@ contract HyperchainDeployer is L1ContractDeployer {
     }
 
     function addNewHyperchainToDeploy(string memory _name, address _baseToken) internal {
-        hyperchainsToDeploy.push(getDefaultHyperchainDeployInfo(_name, currentHyperChainId++, _baseToken));
+        hyperchainsToDeploy.push(getDefaultHyperchainDeployInfo(_name, currentHyperChainId, _baseToken));
+        hyperchainIds.push(currentHyperChainId);
+        currentHyperChainId++;
     }
 
     function getDefaultDescription(
