@@ -36,7 +36,7 @@ import {RegisterHyperchainsScript} from "../../../scripts-rs/script/RegisterHype
 contract BridgeHubIntegration is Test {
     using stdStorage for StdStorage;
 
-    address[] tokens;
+    // address[] tokens;
 
     address alice;
     address bob;
@@ -55,51 +55,45 @@ contract BridgeHubIntegration is Test {
         bridgeHub = Bridgehub(bridgehubProxyAddress);
     }
 
-    function registerNewToken(address tokenAddress) internal {
-        if (!bridgeHub.tokenIsRegistered(tokenAddress)) {
-            vm.prank(bridgehubOwnerAddress);
-            bridgeHub.addToken(tokenAddress);
-        }
-    }
+    // function registerNewToken(address tokenAddress) internal {
+    //     if (!bridgeHub.tokenIsRegistered(tokenAddress)) {
+    //         vm.prank(bridgehubOwnerAddress);
+    //         bridgeHub.addToken(tokenAddress);
+    //     }
+    // }
 
-    function registerNewTokens(address[] memory _tokens) internal {
-        for (uint256 i = 0; i < _tokens.length; i++) {
-            registerNewToken(_tokens[i]);
-        }
-    }
+    // function registerNewTokens(address[] memory _tokens) internal {
+    //     for (uint256 i = 0; i < _tokens.length; i++) {
+    //         registerNewToken(_tokens[i]);
+    //     }
+    // }
 
     function registerNewChain(uint256 _chainId, address _baseToken) internal returns (uint256 chainId) {
         /// Todo: Implement this function
     }
 
-    function setSharedBridgeChainBalance(uint256 _chainId, address _token, uint256 _value) internal {
-        stdstore
-            .target(address(sharedBridge))
-            .sig(sharedBridge.chainBalance.selector)
-            .with_key(_chainId)
-            .with_key(_token)
-            .checked_write(_value);
-    }
-}
-
-contract BridgehubDeployInterface is Test {
-    Bridgehub bridgeHub;
+    // function setSharedBridgeChainBalance(uint256 _chainId, address _token, uint256 _value) internal {
+    //     stdstore
+    //         .target(address(sharedBridge))
+    //         .sig(sharedBridge.chainBalance.selector)
+    //         .with_key(_chainId)
+    //         .with_key(_token)
+    //         .checked_write(_value);
+    // }
 }
 
 contract Tokens {
-    address[] internal tokens;
-
+    address[] tokens;
     DeployErc20Script private deployScript;
 
-    constructor() {
+    function deployTokens() internal {
         deployScript = new DeployErc20Script();
         deployScript.run();
-
         tokens = deployScript.getTokensAddresses();
     }
 }
 
-contract HyperchainDeploy is BridgehubDeployInterface {
+contract HyperchainDeploy is BridgeHubIntegration {
     RegisterHyperchainsScript deployScript;
     HyperchainDeployInfo[] hyperchainsToDeploy;
 
@@ -112,16 +106,19 @@ contract HyperchainDeploy is BridgehubDeployInterface {
     uint256 currentHyperChainId = 9;
     uint256[] hyperchainIds;
 
-    constructor() {
+    function deployHyperchains() internal {
         deployScript = new RegisterHyperchainsScript();
 
-        hyperchainsToDeploy.push(HyperchainDeployInfo({name: "era", chainId: currentChainId, baseToken: ETH_TOKEN_ADDRESS}));
+        hyperchainsToDeploy.push(
+            HyperchainDeployInfo({name: "era", chainId: currentHyperChainId, baseToken: ETH_TOKEN_ADDRESS})
+        );
 
         saveHyperchainConfig();
 
+        vm.setEnv("HYPERCHAINS_CONFIG", "/scripts-rs/script-out/output-deploy-hyperchains.toml");
+
         deployScript.run();
     }
-
 
     function saveHyperchainConfig() public {
         string memory serialized;
@@ -136,7 +133,7 @@ contract HyperchainDeploy is BridgehubDeployInterface {
                     bridgehubCreateNewChainSalt: 0,
                     validiumMode: false,
                     validatorSenderOperatorCommitEth: address(0),
-                    validatorSenderOperatorBlobsEth: address(0),
+                    validatorSenderOperatorBlobsEth: address(1),
                     baseTokenGasPriceMultiplierNominator: uint128(1),
                     baseTokenGasPriceMultiplierDenominator: uint128(1)
                 });
@@ -177,21 +174,17 @@ contract HyperchainDeploy is BridgehubDeployInterface {
 
             string memory single_serialized = vm.serializeUint(
                 hyperchainName,
-                "base_token_gas_price_multiplier_nominator",
+                "base_token_gas_price_multiplier_denominator",
                 description.baseTokenGasPriceMultiplierDenominator
             );
 
             serialized = vm.serializeString("hyperchain", hyperchainName, single_serialized);
         }
 
-        string memory toml = vm.serializeString("toml", "hyperchains", serialized);
+        string memory toml = vm.serializeString("toml1", "hyperchains", serialized);
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/scripts-rs/script-out/output-deploy-hyperchains.toml");
         vm.writeToml(toml, path);
-    }
-
-    function registerNewChainScript() internal {
-        deployScript.run();
     }
 
     // function spawnHyperchain() public {
@@ -210,7 +203,7 @@ contract HyperchainDeploy is BridgehubDeployInterface {
     // }
 
     // function spawnMultipleHyperchainsWithToken(uint256 _numHyperchains, address _token) public {
-    //     for (uint256 i = 0; i < _numHyperchains; i++) {
+    //     for (uint256 i = 0; i < _numHyperchains; i++) {    function getHyperChai
     //         spawnHyperchain(_token);
     //     }
     // }
@@ -238,53 +231,53 @@ contract HyperchainDeploy is BridgehubDeployInterface {
     // }
 }
 
-contract HyperchainFactory is BridgeHubIntegration {
-    uint256 minHyperchainId = 10;
-    uint256[] hyperchainIds;
+// contract HyperchainFactory is BridgeHubIntegration {
+//     uint256 minHyperchainId = 10;
+//     uint256[] hyperchainIds;
 
-    function spawnHyperchain() public {
-        hyperchainIds.push(registerNewChain(minHyperchainId + hyperchainIds.length, ETH_TOKEN_ADDRESS));
-    }
+//     function spawnHyperchain() public {
+//         hyperchainIds.push(registerNewChain(minHyperchainId + hyperchainIds.length, ETH_TOKEN_ADDRESS));
+//     }
 
-    function spawnHyperchain(address _token) public {
-        registerNewToken(_token);
-        hyperchainIds.push(registerNewChain(minHyperchainId + hyperchainIds.length, _token));
-    }
+//     function spawnHyperchain(address _token) public {
+//         registerNewToken(_token);
+//         hyperchainIds.push(registerNewChain(minHyperchainId + hyperchainIds.length, _token));
+//     }
 
-    function spawnMultipleHyperchains(uint256 _numHyperchains) public {
-        for (uint256 i = 0; i < _numHyperchains; i++) {
-            spawnHyperchain();
-        }
-    }
+//     function spawnMultipleHyperchains(uint256 _numHyperchains) public {
+//         for (uint256 i = 0; i < _numHyperchains; i++) {
+//             spawnHyperchain();
+//         }
+//     }
 
-    function spawnMultipleHyperchainsWithToken(uint256 _numHyperchains, address _token) public {
-        for (uint256 i = 0; i < _numHyperchains; i++) {
-            spawnHyperchain(_token);
-        }
-    }
+//     function spawnMultipleHyperchainsWithToken(uint256 _numHyperchains, address _token) public {
+//         for (uint256 i = 0; i < _numHyperchains; i++) {
+//             spawnHyperchain(_token);
+//         }
+//     }
 
-    function getHyperchainAddress(uint256 _chainId) public view returns (address) {
-        return bridgeHub.getHyperchain(_chainId);
-    }
+//     function getHyperchainAddress(uint256 _chainId) public view returns (address) {
+//         return bridgeHub.getHyperchain(_chainId);
+//     }
 
-    function getHyperchainBaseToken(uint256 _chainId) public view returns (address) {
-        return bridgeHub.baseToken(_chainId);
-    }
+//     function getHyperchainBaseToken(uint256 _chainId) public view returns (address) {
+//         return bridgeHub.baseToken(_chainId);
+//     }
 
-    function clearSharedBridgeBalances(address _token) public {
-        for (uint256 i = 0; i < hyperchainIds.length; i++) {
-            setSharedBridgeChainBalance(hyperchainIds[i], ETH_TOKEN_ADDRESS, 0);
-            setSharedBridgeChainBalance(hyperchainIds[i], address(_token), 0);
-        }
-    }
+//     // function clearSharedBridgeBalances(address _token) public {
+//     //     for (uint256 i = 0; i < hyperchainIds.length; i++) {
+//     //         setSharedBridgeChainBalance(hyperchainIds[i], ETH_TOKEN_ADDRESS, 0);
+//     //         setSharedBridgeChainBalance(hyperchainIds[i], address(_token), 0);
+//     //     }
+//     // }
 
-    function test_creationOfHyperchains() public {
-        for (uint256 i = minHyperchainId; i < hyperchainIds.length; i++) {
-            address newHyperchain = getHyperchainAddress(i);
-            assert(newHyperchain != address(0));
-        }
-    }
-}
+//     function test_creationOfHyperchains() public {
+//         for (uint256 i = minHyperchainId; i < hyperchainIds.length; i++) {
+//             address newHyperchain = getHyperchainAddress(i);
+//             assert(newHyperchain != address(0));
+//         }
+//     }
+// }
 
 contract L2TxMocker is Test {
     address mockRefundRecipient;
@@ -347,24 +340,24 @@ contract L2TxMocker is Test {
     }
 }
 
-contract IntegrationTests is BridgeHubIntegration, HyperchainFactory, L2TxMocker {
+contract IntegrationTests is BridgeHubIntegration, HyperchainDeploy, Tokens {
     function setUp() public {
-        DeployErc20Script ercErc20script = new DeployErc20Script();
-        ercErc20script.run();
-
-        tokens = ercErc20script.getTokensAddresses();
-        registerNewToken(tokens);
-
-        baseToken = TestnetERC20Token(tokens[0]);
-
-        spawnMultipleHyperchains(2);
-        spawnMultipleHyperchainsWithToken(2, address(baseToken));
-
-        alice = makeAddr("alice");
-        bob = makeAddr("bob");
+        deployTokens();
+        deployHyperchains();
     }
 
+    // function setUp() public {
+    //     // DeployErc20Script ercErc20script = new DeployErc20Script();
+    //     // ercErc20script.run();
+    //     // tokens = ercErc20script.getTokensAddresses();
+    //     // registerNewToken(tokens);
+    //     // baseToken = TestnetERC20Token(tokens[0]);
+    //     // spawnMultipleHyperchains(2);
+    //     // spawnMultipleHyperchainsWithToken(2, address(baseToken));
+    // }
+
     function test_hyperchainTokenDirectDeposit_Eth_2() public {
+        emit log_address(bridgeHub.getHyperchain(9));
         // DeployErc20Script script = new DeployErc20Script();
         // script.run();
 
