@@ -16,7 +16,7 @@ contract HyperchainDeployer is L1ContractDeployer {
 
     uint256 currentHyperChainId = 10;
     uint256 eraHyperchainId = 9;
-    uint256[] hyperchainIds;
+    uint256[] public hyperchainIds;
 
     function deployHyperchains() internal {
         deployScript = new RegisterHyperchainsScript();
