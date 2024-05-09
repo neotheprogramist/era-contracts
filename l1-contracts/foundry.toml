@@ -7,4 +7,10 @@ test = 'test/foundry'
 solc_version = "0.8.24"
 evm_version = "cancun"
 
+fs_permissions = [
+    { access = "read", path = "./test/foundry/integration/deploy-scripts/script-config/" },
+    { access = "read-write", path = "./test/foundry/integration/deploy-scripts/script-out/" },
+    { access = "read", path = "./out" }
+]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/crates/config
