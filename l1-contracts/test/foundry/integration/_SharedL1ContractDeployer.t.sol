@@ -14,6 +14,8 @@ contract L1ContractDeployer is Test {
     address sharedBridgeProxyAddress;
     L1SharedBridge sharedBridge;
 
+    address diamondProxyAddress;
+
     function deployL1Contracts() internal {
         DeployL1Script l1Script = new DeployL1Script();
         l1Script.run();
@@ -24,6 +26,8 @@ contract L1ContractDeployer is Test {
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
+
+        diamondProxyAddress = l1Script.getDimondProxyAddress();
     }
 
     function registerNewToken(address _tokenAddress) internal {

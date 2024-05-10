@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 import {L2TransactionRequestDirect, L2TransactionRequestTwoBridgesOuter} from "contracts/bridgehub/IBridgehub.sol";
 import {TestnetERC20Token} from "contracts/dev-contracts/TestnetERC20Token.sol";
+import {TestnetERC721Token} from "contracts/dev-contracts/TestnetERC721Token.sol";
 
 import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
 
@@ -12,12 +15,17 @@ import {HyperchainDeployer} from "./_SharedHyperchainDeployer.t.sol";
 import {L2TxMocker} from "./_SharedL2TxMocker.t.sol";
 
 import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
+import {L1Erc721Bridge} from "./L1Erc721Bridge/L1Erc721Bridge.sol";
+
+import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 
 contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     address alice;
     address bob;
 
     TestnetERC20Token baseToken;
+
+    L1Erc721Bridge erc721Bridge;
 
     function setUp() public {
         deployL1Contracts();
@@ -34,6 +42,25 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         alice = makeAddr("alice");
         bob = makeAddr("bob");
         baseToken = TestnetERC20Token(tokens[0]);
+
+        ////////////////////////// ERC721 Bridge //////////////////////////
+
+        erc721Bridge = new L1Erc721Bridge({
+            _l1WethAddress: tokens[1],
+            _bridgehub: IBridgehub(bridgehubProxyAddress),
+            _eraChainId: 9,
+            _eraDiamondProxy: diamondProxyAddress
+        });
+
+        vm.prank(erc721Bridge.owner());
+        erc721Bridge.transferOwnership(bridgehubOwnerAddress);
+
+        vm.prank(bridgehubOwnerAddress);
+        erc721Bridge.acceptOwnership();
+
+        uint256 firstChainId = hyperchainIds[0];
+        vm.prank(bridgehubOwnerAddress);
+        erc721Bridge.initializeChainGovernance(firstChainId, mockL2SharedBridge);
     }
 
     function test_hyperchainTokenDirectDeposit_Eth() public {
@@ -259,5 +286,62 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         assertEq(sharedBridge.chainBalance(firstChainId, tokenAddress), aliceDepositAmount);
         assertEq(sharedBridge.chainBalance(secondChainId, tokenAddress), bobDepositAmount);
         assertEq(baseToken.balanceOf(address(sharedBridge)), aliceDepositAmount + bobDepositAmount);
+    }
+
+    function test_hyperchainDepositErc721Token() public {
+        TestnetERC721Token erc721Token = new TestnetERC721Token("TestnetERC721Token", "TET");
+
+        uint256 aliceDepositAmount = 1 ether;
+        uint256 bobDepositAmount = 1.5 ether;
+
+        uint256 mintValue = 2 ether;
+        uint256 l2Value = 10000;
+        address l2Receiver = makeAddr("receiver");
+        address tokenAddress = address(baseToken);
+
+        uint256 firstChainId = hyperchainIds[0];
+
+        address firstHyperChainAddress = getHyperchainAddress(firstChainId);
+
+        assertTrue(getHyperchainBaseToken(firstChainId) == ETH_TOKEN_ADDRESS);
+
+        vm.txGasPrice(0.05 ether);
+        vm.deal(alice, mintValue);
+
+        assertEq(alice.balance, mintValue);
+
+        erc721Token.mint(alice, 1);
+
+        assertEq(erc721Token.balanceOf(alice), 1);
+        assertEq(erc721Token.balanceOf(address(erc721Bridge)), 0);
+
+        vm.prank(alice);
+        erc721Token.approve(address(erc721Bridge), 1);
+
+        bytes32 canonicalHash = keccak256(abi.encode("CANONICAL_TX_HASH"));
+        {
+            bytes memory aliceSecondBridgeCalldata = abi.encode(address(erc721Token), 1, l2Receiver);
+            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges(
+                firstChainId,
+                mintValue,
+                0,
+                l2Value,
+                address(erc721Bridge),
+                aliceSecondBridgeCalldata
+            );
+
+            vm.mockCall(
+                firstHyperChainAddress,
+                abi.encodeWithSelector(MailboxFacet.bridgehubRequestL2Transaction.selector),
+                abi.encode(canonicalHash)
+            );
+
+            vm.prank(alice);
+            bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(aliceRequest);
+            assertEq(canonicalHash, resultantHash);
+        }
+
+        assertEq(erc721Token.balanceOf(alice), 0);
+        assertEq(erc721Token.balanceOf(address(erc721Bridge)), 1);
     }
 }
