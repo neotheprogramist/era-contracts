@@ -21,7 +21,11 @@ import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA, COMMIT_TIMESTAMP_NOT_OLDER, DEFAULT_L
 import {Vm} from "forge-std/Vm.sol";
 import {L2CanonicalTransaction} from "contracts/common/Messaging.sol";
 import {IL2Bridge} from "contracts/bridge/interfaces/IL2Bridge.sol";
-import {UnsafeBytes} from "contracts/common/libraries/UnsafeBytes.sol";
+import {L2Message} from "contracts/common/Messaging.sol";
+import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
+import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
+
+import {IL1ERC20Bridge} from "contracts/bridge/interfaces/IL1ERC20Bridge.sol";
 
 contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     uint constant TEST_USERS_COUNT = 10;
@@ -46,20 +50,22 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
     address public currentTokenAddress = ETH_TOKEN_ADDRESS;
     TestnetERC20Token currentToken;
 
-    // amounts deposited by the user, mapped by token
+    // Amounts deposited by each user, mapped by user address and token address
     mapping(address user => mapping(address token => uint256 deposited)) public depositsUsers;
-    // amounts deposited into the bridge, mapped by hyperchain and token
+    // Amounts deposited into the bridge, mapped by hyperchain address and token address
     mapping(address chain => mapping(address token => uint256 deposited)) public depositsBridge;
-    // sum of deposits into the bridge, mapped by token address
+    // Total sum of deposits into the bridge, mapped by token address
     mapping(address token => uint256 deposited) public tokenSumDeposit;
-    // sum of l2values which were transfered to some mock contract, mapped by token address
+    // Total sum of withdrawn tokens, mapped by token address
+    mapping(address token => uint256 deposited) public tokenSumWithdrawal;
+    // Total sum of L2 values transferred to mock contracts, mapped by token address
     mapping(address token => uint256 deposited) public l2ValuesSum;
-    // deposits into the hyperchains contract, mapped by token address
+    // Deposits into the hyperchains contract, mapped by L2 contract address and token address
     mapping(address l2contract => mapping(address token => uint256 balance)) public contractDeposits;
-    // sum of deposits into all the l2 contracts, mapped by token
+    // Total sum of deposits into all L2 contracts, mapped by token address
     mapping(address token => uint256 deposited) public contractDepositsSum;
 
-    // gets random user from users array, sets currentUser
+    // gets random user from users array, set contract variables
     modifier useUser(uint256 userIndexSeed) {
         currentUser = users[bound(userIndexSeed, 0, users.length - 1)];
         vm.startPrank(currentUser);
@@ -67,21 +73,21 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         vm.stopPrank();
     }
 
-    // gets random hyperchain from hyperchain ids, sets currentChainId and currentChainAddress
+    // gets random hyperchain from hyperchain ids, set contract variables
     modifier useHyperchain(uint256 chainIndexSeed) {
         currentChainId = hyperchainIds[bound(chainIndexSeed, 0, hyperchainIds.length - 1)];
         currentChainAddress = getHyperchainAddress(currentChainId);
         _;
     }
 
-    // use token specified by address
+    // use token specified by address, set contract variables
     modifier useGivenToken(address tokenAddress) {
         currentToken = TestnetERC20Token(tokenAddress);
         currentTokenAddress = tokenAddress;
         _;
     }
 
-    // use random token from tokens array
+    // use random token from tokens array, set contract variables
     modifier useRandomToken(uint256 tokenIndexSeed) {
         currentTokenAddress = tokens[bound(tokenIndexSeed, 0, tokens.length - 1)];
         currentToken = TestnetERC20Token(currentTokenAddress);
@@ -89,15 +95,15 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
     }
 
     // use base token as main token
-    // watch out, will fail if used with etherum
+    // watch out, do not use with ETH
     modifier useBaseToken() {
         currentToken = TestnetERC20Token(getHyperchainBaseToken(currentChainId));
         currentTokenAddress = address(currentToken);
         _;
     }
 
-    // use erc20 token by getting randomly token and keep iterating,
-    // while the token is ETH
+    // use ERC token by getting randomly token
+    // it keeps iterating while the token is ETH
     modifier useERC20Token(uint256 tokenIndexSeed) {
         currentTokenAddress = tokens[bound(tokenIndexSeed, 0, tokens.length - 1)];
 
@@ -121,6 +127,8 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    // TODO: consider what should be actually commited, do we need to simulate operator:
+    // blocks -> batches -> commits or just mock it.
     function commitBatchInfo(uint256 _chainId) internal {
         //vm.warp(COMMIT_TIMESTAMP_NOT_OLDER + 1 + 1);
 
@@ -141,11 +149,9 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
 
         bytes32 hashedZeroBatch = keccak256(abi.encode(batchZero));
         assertEq(hyperchainGetters.storedBatchHash(0), hashedZeroBatch);
-
-        // TODO: consider creating blocks and then batches
     }
 
-    // use mailbox interface to return exact amount to use as a gas,
+    // use mailbox interface to return exact amount to use as a gas on l2 side,
     // prevents from failing if mintValue < l2Value + required gas
     function getMinRequiredGasPriceForChain(
         uint256 _chainId,
@@ -176,18 +182,18 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         );
     }
 
-    // handle event emited from logs and decodes it properly
+    // handle event emited from, just to ensure proper decoding to set mock contract balance
     function handleRequestByMockL2Contract(NewPriorityRequest memory request) internal {
-        address payable contractAddress = payable(address(uint160(uint256(request.transaction.to))));
-        address someMockAddress = makeAddr("mocked");
+        address contractAddress = address(uint160(uint256(request.transaction.to)));
 
         address tokenAddress;
         address receiver;
         uint256 toSend;
         address l1Sender;
+        uint256 balanceAfter;
+        bytes memory temp;
 
         uint256 requestLength = request.transaction.data.length;
-        bytes memory temp;
 
         if (requestLength > 96) {
             (l1Sender, receiver, tokenAddress, toSend, temp) = getDecodedDepositL2Calldata(request.transaction.data);
@@ -197,26 +203,14 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
 
         assertEq(contractAddress, receiver);
 
-        uint256 balanceAfter = 0;
-
         if (tokenAddress == ETH_TOKEN_ADDRESS) {
-            vm.deal(someMockAddress, toSend);
-
-            vm.startPrank(someMockAddress);
-            bool sent = contractAddress.send(toSend);
-            vm.stopPrank();
-            assertEq(sent, true);
+            uint256 balanceBefore = contractAddress.balance;
+            vm.deal(contractAddress, toSend + balanceBefore);
 
             balanceAfter = contractAddress.balance;
         } else {
             TestnetERC20Token token = TestnetERC20Token(tokenAddress);
-            token.mint(someMockAddress, toSend);
-
-            vm.startPrank(someMockAddress);
-            token.approve(someMockAddress, toSend);
-            bool sent = token.transferFrom(someMockAddress, contractAddress, toSend);
-            vm.stopPrank();
-            assertEq(sent, true);
+            token.mint(contractAddress, toSend);
 
             balanceAfter = token.balanceOf(contractAddress);
         }
@@ -262,7 +256,6 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         vm.deal(currentUser, mintValue);
 
         currentToken.mint(currentUser, l2Value);
-        assertEq(currentToken.balanceOf(currentUser), l2Value);
         currentToken.approve(address(sharedBridge), l2Value);
 
         bytes memory secondBridgeCallData = abi.encode(currentTokenAddress, l2Value, chainContracts[currentChainId]);
@@ -310,7 +303,6 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         vm.deal(currentUser, l2Value);
         uint256 mintValue = minRequiredGas;
         currentToken.mint(currentUser, mintValue);
-        assertEq(currentToken.balanceOf(currentUser), mintValue);
         currentToken.approve(address(sharedBridge), mintValue);
 
         bytes memory secondBridgeCallData = abi.encode(ETH_TOKEN_ADDRESS, uint256(0), chainContracts[currentChainId]);
@@ -363,11 +355,9 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
 
         TestnetERC20Token baseToken = TestnetERC20Token(baseTokenAddress);
         baseToken.mint(currentUser, mintValue);
-        assertEq(baseToken.balanceOf(currentUser), mintValue);
         baseToken.approve(address(sharedBridge), mintValue);
 
         currentToken.mint(currentUser, l2Value);
-        assertEq(currentToken.balanceOf(currentUser), l2Value);
         currentToken.approve(address(sharedBridge), l2Value);
 
         bytes memory secondBridgeCallData = abi.encode(currentTokenAddress, l2Value, chainContracts[currentChainId]);
@@ -460,7 +450,6 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
 
         uint256 mintValue = l2Value + minRequiredGas;
         currentToken.mint(currentUser, mintValue);
-        assertEq(currentToken.balanceOf(currentUser), mintValue);
         currentToken.approve(address(sharedBridge), mintValue);
 
         bytes memory callData = abi.encode(currentTokenAddress, l2Value, chainContracts[currentChainId]);
@@ -487,6 +476,124 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         depositsBridge[currentChainAddress][currentTokenAddress] += mintValue;
         tokenSumDeposit[currentTokenAddress] += mintValue;
         l2ValuesSum[currentTokenAddress] += l2Value;
+    }
+
+    function withdrawERC20Token(uint256 amountToWithdraw, address tokenAddress) private useGivenToken(tokenAddress) {
+        uint256 l2BatchNumber = uint256(uint160(makeAddr("l2BatchNumber")));
+        uint256 l2MessageIndex = uint256(uint160(makeAddr("l2MessageIndex")));
+        uint16 l2TxNumberInBatch = uint16(uint160(makeAddr("l2TxNumberInBatch")));
+        bytes32[] memory merkleProof = new bytes32[](1);
+
+        _setSharedBridgeIsWithdrawalFinalized(currentChainId, l2BatchNumber, l2MessageIndex, false);
+        uint256 beforeChainBalance = sharedBridge.chainBalance(currentChainId, currentTokenAddress);
+        uint256 beforeBalance = currentToken.balanceOf(sharedBridgeProxyAddress);
+
+        if (beforeChainBalance < amountToWithdraw) {
+            vm.expectRevert("ShB not enough funds 2");
+        } else {
+            tokenSumWithdrawal[currentTokenAddress] += amountToWithdraw;
+        }
+
+        bytes memory message = abi.encodePacked(
+            IL1ERC20Bridge.finalizeWithdrawal.selector,
+            currentUser,
+            currentTokenAddress,
+            amountToWithdraw
+        );
+
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: l2TxNumberInBatch,
+            sender: L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: message
+        });
+
+        vm.mockCall(
+            bridgehubProxyAddress,
+            // solhint-disable-next-line func-named-parameters
+            abi.encodeWithSelector(
+                IBridgehub.proveL2MessageInclusion.selector,
+                currentChainId,
+                l2BatchNumber,
+                l2MessageIndex,
+                l2ToL1Message,
+                merkleProof
+            ),
+            abi.encode(true)
+        );
+
+        sharedBridge.finalizeWithdrawal({
+            _chainId: currentChainId,
+            _l2BatchNumber: l2BatchNumber,
+            _l2MessageIndex: l2MessageIndex,
+            _l2TxNumberInBatch: l2TxNumberInBatch,
+            _message: message,
+            _merkleProof: merkleProof
+        });
+
+        // check if the balance was updated correctly
+        if (beforeChainBalance > amountToWithdraw) {
+            assertEq(
+                beforeChainBalance - sharedBridge.chainBalance(currentChainId, currentTokenAddress),
+                amountToWithdraw
+            );
+            assertEq(beforeBalance - currentToken.balanceOf(sharedBridgeProxyAddress), amountToWithdraw);
+        }
+    }
+
+    function withdrawETHToken(uint256 amountToWithdraw, address tokenAddress) private useGivenToken(tokenAddress) {
+        uint256 l2BatchNumber = uint256(uint160(makeAddr("l2BatchNumber")));
+        uint256 l2MessageIndex = uint256(uint160(makeAddr("l2MessageIndex")));
+        uint16 l2TxNumberInBatch = uint16(uint160(makeAddr("l2TxNumberInBatch")));
+        bytes32[] memory merkleProof = new bytes32[](1);
+
+        _setSharedBridgeIsWithdrawalFinalized(currentChainId, l2BatchNumber, l2MessageIndex, false);
+        uint256 beforeChainBalance = sharedBridge.chainBalance(currentChainId, currentTokenAddress);
+        uint256 beforeBalance = sharedBridgeProxyAddress.balance;
+
+        if (beforeChainBalance < amountToWithdraw) {
+            vm.expectRevert("ShB not enough funds 2");
+        } else {
+            tokenSumWithdrawal[currentTokenAddress] += amountToWithdraw;
+        }
+
+        bytes memory message = abi.encodePacked(IMailbox.finalizeEthWithdrawal.selector, currentUser, amountToWithdraw);
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: l2TxNumberInBatch,
+            sender: L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: message
+        });
+
+        vm.mockCall(
+            bridgehubProxyAddress,
+            // solhint-disable-next-line func-named-parameters
+            abi.encodeWithSelector(
+                IBridgehub.proveL2MessageInclusion.selector,
+                currentChainId,
+                l2BatchNumber,
+                l2MessageIndex,
+                l2ToL1Message,
+                merkleProof
+            ),
+            abi.encode(true)
+        );
+
+        sharedBridge.finalizeWithdrawal({
+            _chainId: currentChainId,
+            _l2BatchNumber: l2BatchNumber,
+            _l2MessageIndex: l2MessageIndex,
+            _l2TxNumberInBatch: l2TxNumberInBatch,
+            _message: message,
+            _merkleProof: merkleProof
+        });
+
+        // check if the balance was updated correctly
+        if (beforeChainBalance > amountToWithdraw) {
+            assertEq(
+                beforeChainBalance - sharedBridge.chainBalance(currentChainId, currentTokenAddress),
+                amountToWithdraw
+            );
+            assertEq(beforeBalance - sharedBridgeProxyAddress.balance, amountToWithdraw);
+        }
     }
 
     function depositEthToBridgeSuccess(
@@ -520,6 +627,21 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    function withdrawSuccess(
+        uint256 userIndexSeed,
+        uint256 chainIndexSeed,
+        uint256 tokenIndexSeed,
+        uint256 amountToWithdraw
+    ) public virtual useUser(userIndexSeed) useHyperchain(chainIndexSeed) {
+        address token = getHyperchainBaseToken(currentChainId);
+
+        if (token != ETH_TOKEN_ADDRESS) {
+            withdrawERC20Token(amountToWithdraw, token);
+        } else if (token == ETH_TOKEN_ADDRESS) {
+            withdrawETHToken(amountToWithdraw, token);
+        }
+    }
+
     function prepare() public {
         generateUserAddresses();
 
@@ -531,6 +653,8 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         addNewHyperchainToDeploy("hyperchain2", ETH_TOKEN_ADDRESS);
         addNewHyperchainToDeploy("hyperchain3", tokens[0]);
         addNewHyperchainToDeploy("hyperchain4", tokens[0]);
+        addNewHyperchainToDeploy("hyperchain5", tokens[1]);
+        addNewHyperchainToDeploy("hyperchain6", tokens[1]);
         deployHyperchains();
 
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
@@ -547,6 +671,7 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         uint64 MAX = 2 ** 64 - 1;
         uint256 l2Value = bound(l2Value, 0.1 ether, MAX);
 
+        emit log_string("DEPOSIT ETH");
         super.depositEthToBridgeSuccess(userIndexSeed, chainIndexSeed, l2Value);
     }
 
@@ -559,7 +684,21 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         uint64 MAX = 2 ** 64 - 1;
         uint256 l2Value = bound(l2Value, 0.1 ether, MAX);
 
+        emit log_string("DEPOSIT ERC20");
         super.depositERC20ToBridgeSuccess(userIndexSeed, chainIndexSeed, tokenIndexSeed, l2Value);
+    }
+
+    function withdrawERC20Success(
+        uint256 userIndexSeed,
+        uint256 tokenIndexSeed,
+        uint256 chainIndexSeed,
+        uint256 amountToWithdraw
+    ) public {
+        uint64 MAX = (2 ** 32 - 1) + 0.1 ether;
+        uint256 amountToWithdraw = bound(amountToWithdraw, 0.1 ether, MAX);
+
+        emit log_string("WITHDRAW ERC20");
+        super.withdrawSuccess(userIndexSeed, tokenIndexSeed, tokenIndexSeed, amountToWithdraw);
     }
 }
 
@@ -570,43 +709,46 @@ contract InvariantTesterHyperchains is Test {
         tests = new BoundedBridgeHubInvariantTests();
         tests.prepare();
 
-        FuzzSelector memory selector = FuzzSelector({addr: address(tests), selectors: new bytes4[](2)});
+        FuzzSelector memory selector = FuzzSelector({addr: address(tests), selectors: new bytes4[](3)});
 
         selector.selectors[0] = BoundedBridgeHubInvariantTests.depositEthSuccess.selector;
         selector.selectors[1] = BoundedBridgeHubInvariantTests.depositERC20Success.selector;
+        selector.selectors[2] = BoundedBridgeHubInvariantTests.withdrawERC20Success.selector;
 
         targetContract(address(tests));
         targetSelector(selector);
     }
 
-    // check wether eth sum of deposits shadowed between tests and updated on each deposit
-    // equals balance of L1Shared bridge
-    /// forge-config: default.invariant.fail-on-revert = false
-    function invariant_ETHSumEqualsBalance() public {
-        assertEq(tests.tokenSumDeposit(ETH_TOKEN_ADDRESS), tests.sharedBridgeProxyAddress().balance);
+    // Check whether the sum of ETH deposits from tests, updated on each deposit and withdrawal,
+    // equals the balance of L1Shared bridge.
+    function invariant_ETHbalanceStaysEqual() public {
+        assertEq(
+            tests.tokenSumDeposit(ETH_TOKEN_ADDRESS) - tests.tokenSumWithdrawal(ETH_TOKEN_ADDRESS),
+            tests.sharedBridgeProxyAddress().balance
+        );
     }
 
-    // check wether current token sum of deposits shadowed between tests and updated on each deposit
-    // equals balance of L1Shared bridge
-    /// forge-config: default.invariant.fail-on-revert = false
-    function invariant_currentTokenSumEqualsBalance() public {
-        address currentTokenAddress = tests.currentTokenAddress();
-        if (currentTokenAddress != ETH_TOKEN_ADDRESS) {
-            TestnetERC20Token token = TestnetERC20Token(currentTokenAddress);
+    // Check whether the sum of deposits for the current token from tests, updated on each deposit and withdrawal,
+    // equals the balance of the L1Shared bridge.
+    function invariant_tokenbalanceStaysEqual() public {
+        address tokenAddress = tests.currentTokenAddress();
+
+        if (tokenAddress != ETH_TOKEN_ADDRESS) {
+            TestnetERC20Token token = TestnetERC20Token(tokenAddress);
             assertEq(
-                tests.tokenSumDeposit(tests.currentTokenAddress()),
+                tests.tokenSumDeposit(tokenAddress) - tests.tokenSumWithdrawal(tokenAddress),
                 token.balanceOf(tests.sharedBridgeProxyAddress())
             );
         }
     }
 
-    // check if sum of ETH part which is send to L2 contract, registered by this test suite
-    // is equals actual sum of balances of l2 contracts (which are mocked, but read events from logs)
-    /// forge-config: default.invariant.fail-on-revert = true
+    // This function checks if the sum of ETH deposits sent to the L2 contracts, as registered by this test suite,
+    // is equal to the actual sum of balances of the L2 contracts (which are mocked, but read events from logs).
+    // Note that this function does not involve any withdrawals, meaning that tokens are not transferred from the mocked L2 contracts. They may, but are not registered by this invariant.
     function invariant_ETHbalaceOnContractsDeposited() public {
         uint256 sum = 0;
 
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 7; i++) {
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = l2Contract.balance;
 
@@ -618,9 +760,9 @@ contract InvariantTesterHyperchains is Test {
         assertEq(tests.contractDepositsSum(ETH_TOKEN_ADDRESS), sum);
     }
 
-    // check if sum of currentToken part which is send to L2 contract, registered by this test suite
-    // is equals actual sum of balances of l2 contracts (which are mocked, but read events from logs)
-    /// forge-config: default.invariant.fail-on-revert = false
+    // This function checks if the sum of current token deposits sent to the L2 contracts, as registered by this test suite,
+    // is equal to the actual sum of balances of the L2 contracts (which are mocked, but read events from logs).
+    // Note that this function does not involve any withdrawals, meaning that tokens are not transferred from the mocked L2 contracts. They may, but are not registered by this invariant.
     function invariant_currentTokenBalaceOnContractsEqualsDeposited() public {
         address currentTokenAddress = tests.currentTokenAddress();
         uint256 sum = 0;
@@ -629,7 +771,7 @@ contract InvariantTesterHyperchains is Test {
             return;
         }
 
-        for (uint256 i = 0; i < 5; i++) {
+        for (uint256 i = 0; i < 7; i++) {
             TestnetERC20Token token = TestnetERC20Token(currentTokenAddress);
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = token.balanceOf(l2Contract);
@@ -641,4 +783,3 @@ contract InvariantTesterHyperchains is Test {
         assertEq(tests.l2ValuesSum(currentTokenAddress), sum);
     }
 }
-
