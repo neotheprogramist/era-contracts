@@ -7,15 +7,11 @@ import {AdminFacet} from "contracts/state-transition/chain-deps/facets/Admin.sol
 import {ExecutorFacet} from "contracts/state-transition/chain-deps/facets/Executor.sol";
 import {GettersFacet} from "contracts/state-transition/chain-deps/facets/Getters.sol";
 import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
+import {Create2Factory} from "./Create2.sol";
 
 library Utils {
     // Cheatcodes address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
-    // Create2Factory deterministic bytecode.
-    // https://github.com/Arachnid/deterministic-deployment-proxy
-    bytes internal constant CREATE2_FACTORY_BYTECODE =
-        hex"604580600e600039806000f350fe7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe03601600081602082378035828234f58015156039578182fd5b8082525050506014600cf3";
-
     Vm internal constant vm = Vm(VM_ADDRESS);
 
     /**
@@ -48,20 +44,15 @@ library Utils {
         }
 
         // Remove `getName()` selector if existing
-        bool hasGetName = false;
         for (uint256 i = 0; i < selectors.length; i++) {
             if (selectors[i] == bytes4(keccak256("getName()"))) {
                 selectors[i] = selectors[selectors.length - 1];
-                hasGetName = true;
+                // Pop the last element from the array
+                assembly {
+                    mstore(selectors, sub(mload(selectors), 1))
+                }
                 break;
             }
-        }
-        if (hasGetName) {
-            bytes4[] memory newSelectors = new bytes4[](selectors.length - 1);
-            for (uint256 i = 0; i < selectors.length - 1; i++) {
-                newSelectors[i] = selectors[i];
-            }
-            return newSelectors;
         }
 
         return selectors;
@@ -193,39 +184,20 @@ library Utils {
     /**
      * @dev Deploy a Create2Factory contract.
      */
-    function deployCreate2Factory() internal returns (address) {
-        address child;
-        bytes memory bytecode = CREATE2_FACTORY_BYTECODE;
+    function deployCreate2Factory(uint256 _salt) internal returns (address factory) {
         vm.startBroadcast();
-        assembly {
-            child := create(0, add(bytecode, 0x20), mload(bytecode))
-        }
+        Create2Factory fac = new Create2Factory{salt: bytes32(_salt)}();
+        factory = address(fac);
         vm.stopBroadcast();
-        require(child != address(0), "Failed to deploy Create2Factory");
-        require(child.code.length > 0, "Failed to deploy Create2Factory");
-        return child;
+        require(factory != address(0), "Failed to deploy Create2Factory");
+        require(factory.code.length > 0, "Failed to deploy Create2Factory");
     }
 
     /**
      * @dev Deploys contract using CREATE2.
      */
-    function deployViaCreate2(bytes memory _bytecode, bytes32 _salt, address _factory) internal returns (address) {
-        if (_bytecode.length == 0) {
-            revert("Bytecode is not set");
-        }
-
-        address contractAddress = vm.computeCreate2Address(_salt, keccak256(_bytecode), _factory);
-        if (contractAddress.code.length != 0) {
-            return contractAddress;
-        }
-
-        (bool success, bytes memory data) = _factory.call(abi.encodePacked(_salt, _bytecode));
-        contractAddress = Utils.bytesToAddress(data);
-
-        if (!success || contractAddress == address(0) || contractAddress.code.length == 0) {
-            revert("Failed to deploy contract via create2");
-        }
-
-        return contractAddress;
+    function deployViaCreate2(bytes memory _bytecode, uint256 _salt, address _factory) internal returns (address) {
+        Create2Factory factory = Create2Factory(_factory);
+        return factory.deploy(_bytecode, _salt);
     }
 }
