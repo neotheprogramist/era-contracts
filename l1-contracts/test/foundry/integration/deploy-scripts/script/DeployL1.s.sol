@@ -35,7 +35,6 @@ contract DeployL1Script is Script {
     using stdToml for string;
 
     address constant ADDRESS_ONE = 0x0000000000000000000000000000000000000001;
-    address constant DETERMINISTIC_CREATE2_ADDRESS = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     struct DeployedAddresses {
         BridgehubDeployedAddresses bridgehub;
@@ -84,7 +83,7 @@ contract DeployL1Script is Script {
     }
 
     struct ContractsConfig {
-        bytes32 create2FactorySalt;
+        uint256 create2FactorySalt;
         address create2FactoryAddr;
         address multicall3Addr;
         uint256 validatorTimelockExecutionDelay;
@@ -183,7 +182,7 @@ contract DeployL1Script is Script {
         );
         config.contracts.governanceMinDelay = toml.readUint("$.contracts.governance_min_delay");
         config.contracts.maxNumberOfHyperchains = toml.readUint("$.contracts.max_number_of_hyperchains");
-        config.contracts.create2FactorySalt = toml.readBytes32("$.contracts.create2_factory_salt");
+        config.contracts.create2FactorySalt = toml.readUint("$.contracts.create2_factory_salt");
         if (vm.keyExistsToml(toml, "$.contracts.create2_factory_addr")) {
             config.contracts.create2FactoryAddr = toml.readAddress("$.contracts.create2_factory_addr");
         }
@@ -220,20 +219,17 @@ contract DeployL1Script is Script {
     function instantiateCreate2Factory() internal {
         address contractAddress;
 
-        bool isDeterministicDeployed = DETERMINISTIC_CREATE2_ADDRESS.code.length > 0;
         bool isConfigured = config.contracts.create2FactoryAddr != address(0);
 
         if (isConfigured) {
             if (config.contracts.create2FactoryAddr.code.length == 0) {
-                revert("Create2Factory configured address is empty");
+                contractAddress = Utils.deployCreate2Factory(config.contracts.create2FactorySalt);
+            } else {
+                contractAddress = config.contracts.create2FactoryAddr;
             }
-            contractAddress = config.contracts.create2FactoryAddr;
             console.log("Using configured Create2Factory address:", contractAddress);
-        } else if (isDeterministicDeployed) {
-            contractAddress = DETERMINISTIC_CREATE2_ADDRESS;
-            console.log("Using deterministic Create2Factory address:", contractAddress);
         } else {
-            contractAddress = Utils.deployCreate2Factory();
+            contractAddress = Utils.deployCreate2Factory(config.contracts.create2FactorySalt);
             console.log("Create2Factory deployed at:", contractAddress);
         }
 
@@ -669,7 +665,7 @@ contract DeployL1Script is Script {
         vm.serializeAddress("l1", "blob_versioned_hash_retriever_addr", addresses.blobVersionedHashRetriever);
         vm.serializeAddress("l1", "validator_timelock_addr", addresses.validatorTimelock);
         vm.serializeAddress("l1", "create2_factory_addr", addresses.create2Factory);
-        vm.serializeBytes32("l1", "create2_factory_salt", config.contracts.create2FactorySalt);
+        vm.serializeUint("l1", "create2_factory_salt", config.contracts.create2FactorySalt);
         vm.serializeAddress("l1", "multicall3_addr", config.contracts.multicall3Addr);
         vm.serializeUint("l1", "l1_chain_id", config.l1ChainId);
         vm.serializeUint("l1", "era_chain_id", config.eraChainId);
