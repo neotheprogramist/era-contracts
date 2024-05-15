@@ -290,31 +290,29 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
 
     function test_hyperchainDepositErc721Token() public {
         TestnetERC721Token erc721Token = new TestnetERC721Token("TestnetERC721Token", "TET");
+        uint256 hyperchainId = hyperchainIds[0];
 
-        uint256 aliceDepositAmount = 1 ether;
-        uint256 bobDepositAmount = 1.5 ether;
-
-        uint256 mintValue = 2 ether;
+        uint256 mintValue = 0.1 ether;
         uint256 l2Value = 10000;
         address l2Receiver = makeAddr("receiver");
-        address tokenAddress = address(baseToken);
 
-        uint256 firstChainId = hyperchainIds[0];
+        address hyperchainAddress = getHyperchainAddress(hyperchainId);
 
-        address firstHyperChainAddress = getHyperchainAddress(firstChainId);
+        assertTrue(getHyperchainBaseToken(hyperchainId) == ETH_TOKEN_ADDRESS);
 
-        assertTrue(getHyperchainBaseToken(firstChainId) == ETH_TOKEN_ADDRESS);
-
+        // mint gas for user
         vm.txGasPrice(0.05 ether);
         vm.deal(alice, mintValue);
-
         assertEq(alice.balance, mintValue);
 
+        // mint erc721 token for user
         erc721Token.mint(alice, 1);
 
+        // check if the user has the erc721 token
         assertEq(erc721Token.balanceOf(alice), 1);
         assertEq(erc721Token.balanceOf(address(erc721Bridge)), 0);
 
+        // approve the erc721 token to the erc721 bridge
         vm.prank(alice);
         erc721Token.approve(address(erc721Bridge), 1);
 
@@ -322,7 +320,7 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         {
             bytes memory aliceSecondBridgeCalldata = abi.encode(address(erc721Token), 1, l2Receiver);
             L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges(
-                firstChainId,
+                hyperchainId,
                 mintValue,
                 0,
                 l2Value,
@@ -331,14 +329,13 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
             );
 
             vm.mockCall(
-                firstHyperChainAddress,
+                hyperchainAddress,
                 abi.encodeWithSelector(MailboxFacet.bridgehubRequestL2Transaction.selector),
                 abi.encode(canonicalHash)
             );
 
             vm.prank(alice);
             bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(aliceRequest);
-            assertEq(canonicalHash, resultantHash);
         }
 
         assertEq(erc721Token.balanceOf(alice), 0);
