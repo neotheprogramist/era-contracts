@@ -12,6 +12,10 @@ import {HyperchainDeployer} from "./_SharedHyperchainDeployer.t.sol";
 import {L2TxMocker} from "./_SharedL2TxMocker.t.sol";
 
 import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
+import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
+import {L2Message} from "contracts/common/Messaging.sol";
+import {IMailbox} from "contracts/state-transition/chain-interfaces/IMailbox.sol";
+import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 
 contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     address alice;
@@ -209,14 +213,14 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         bytes32 canonicalHash = keccak256(abi.encode("CANONICAL_TX_HASH"));
         {
             bytes memory aliceSecondBridgeCalldata = abi.encode(tokenAddress, aliceDepositAmount, l2Receiver);
-            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges(
-                firstChainId,
-                mintValue,
-                0,
-                l2Value,
-                address(sharedBridge),
-                aliceSecondBridgeCalldata
-            );
+            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges({
+                _chainId: firstChainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _l2Value: l2Value,
+                _secondBridgeAddress: address(sharedBridge),
+                _secondBridgeCalldata: aliceSecondBridgeCalldata
+            });
 
             vm.mockCall(
                 firstHyperChainAddress,
@@ -231,14 +235,14 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
 
         {
             bytes memory bobSecondBridgeCalldata = abi.encode(tokenAddress, bobDepositAmount, l2Receiver);
-            L2TransactionRequestTwoBridgesOuter memory bobRequest = createMockL2TransactionRequestTwoBridges(
-                secondChainId,
-                mintValue,
-                0,
-                l2Value,
-                address(sharedBridge),
-                bobSecondBridgeCalldata
-            );
+            L2TransactionRequestTwoBridgesOuter memory bobRequest = createMockL2TransactionRequestTwoBridges({
+                _chainId: secondChainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _l2Value: l2Value,
+                _secondBridgeAddress: address(sharedBridge),
+                _secondBridgeCalldata: bobSecondBridgeCalldata
+            });
 
             vm.mockCall(
                 secondHyperChainAddress,
@@ -259,5 +263,51 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         assertEq(sharedBridge.chainBalance(firstChainId, tokenAddress), aliceDepositAmount);
         assertEq(sharedBridge.chainBalance(secondChainId, tokenAddress), bobDepositAmount);
         assertEq(baseToken.balanceOf(address(sharedBridge)), aliceDepositAmount + bobDepositAmount);
+    }
+
+    function test_hyperchainFinalizeWithdrawal() public {
+        uint256 amountToWithdraw = 1 ether;
+        _setSharedBridgeChainBalance(10, ETH_TOKEN_ADDRESS, amountToWithdraw);
+
+        uint256 l2BatchNumber = uint256(uint160(makeAddr("l2BatchNumber")));
+        uint256 l2MessageIndex = uint256(uint160(makeAddr("l2MessageIndex")));
+        uint16 l2TxNumberInBatch = uint16(uint160(makeAddr("l2TxNumberInBatch")));
+        bytes32[] memory merkleProof = new bytes32[](1);
+        uint256 chainId = 10;
+
+        vm.deal(address(sharedBridge), amountToWithdraw);
+
+        bytes memory message = abi.encodePacked(IMailbox.finalizeEthWithdrawal.selector, alice, amountToWithdraw);
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: l2TxNumberInBatch,
+            sender: L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: message
+        });
+
+        vm.mockCall(
+            bridgehubProxyAddress,
+            // solhint-disable-next-line func-named-parameters
+            abi.encodeWithSelector(
+                IBridgehub.proveL2MessageInclusion.selector,
+                chainId,
+                l2BatchNumber,
+                l2MessageIndex,
+                l2ToL1Message,
+                merkleProof
+            ),
+            abi.encode(true)
+        );
+
+        sharedBridge.finalizeWithdrawal({
+            _chainId: chainId,
+            _l2BatchNumber: l2BatchNumber,
+            _l2MessageIndex: l2MessageIndex,
+            _l2TxNumberInBatch: l2TxNumberInBatch,
+            _message: message,
+            _merkleProof: merkleProof
+        });
+
+        assertEq(alice.balance, amountToWithdraw);
+        assertEq(address(sharedBridge).balance, 0);
     }
 }
