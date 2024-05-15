@@ -13,7 +13,7 @@ import {L2TxMocker} from "./_SharedL2TxMocker.t.sol";
 
 import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
 import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
-import {L2Message, TxStatus} from "contracts/common/Messaging.sol";
+import {L2Message} from "contracts/common/Messaging.sol";
 import {IMailbox} from "contracts/state-transition/chain-interfaces/IMailbox.sol";
 import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 
@@ -213,14 +213,14 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         bytes32 canonicalHash = keccak256(abi.encode("CANONICAL_TX_HASH"));
         {
             bytes memory aliceSecondBridgeCalldata = abi.encode(tokenAddress, aliceDepositAmount, l2Receiver);
-            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges(
-                firstChainId,
-                mintValue,
-                0,
-                l2Value,
-                address(sharedBridge),
-                aliceSecondBridgeCalldata
-            );
+            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges({
+                _chainId: firstChainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _l2Value: l2Value,
+                _secondBridgeAddress: address(sharedBridge),
+                _secondBridgeCalldata: aliceSecondBridgeCalldata
+            });
 
             vm.mockCall(
                 firstHyperChainAddress,
@@ -235,14 +235,14 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
 
         {
             bytes memory bobSecondBridgeCalldata = abi.encode(tokenAddress, bobDepositAmount, l2Receiver);
-            L2TransactionRequestTwoBridgesOuter memory bobRequest = createMockL2TransactionRequestTwoBridges(
-                secondChainId,
-                mintValue,
-                0,
-                l2Value,
-                address(sharedBridge),
-                bobSecondBridgeCalldata
-            );
+            L2TransactionRequestTwoBridgesOuter memory bobRequest = createMockL2TransactionRequestTwoBridges({
+                _chainId: secondChainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _l2Value: l2Value,
+                _secondBridgeAddress: address(sharedBridge),
+                _secondBridgeCalldata: bobSecondBridgeCalldata
+            });
 
             vm.mockCall(
                 secondHyperChainAddress,
