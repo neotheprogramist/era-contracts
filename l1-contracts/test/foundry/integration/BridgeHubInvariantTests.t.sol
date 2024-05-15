@@ -126,7 +126,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
-    // TODO: consider what should be actually commited, do we need to simulate operator:
+    // TODO: consider what should be actually committed, do we need to simulate operator:
     // blocks -> batches -> commits or just mock it.
     function commitBatchInfo(uint256 _chainId) internal {
         //vm.warp(COMMIT_TIMESTAMP_NOT_OLDER + 1 + 1);
@@ -179,7 +179,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         );
     }
 
-    // handle event emited from, just to ensure proper decoding to set mock contract balance
+    // handle event emitted from logs, just to ensure proper decoding to set mock contract balance
     function handleRequestByMockL2Contract(NewPriorityRequest memory request, RequestType requestType) internal {
         address contractAddress = address(uint160(uint256(request.transaction.to)));
 
@@ -189,8 +189,6 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         address l1Sender;
         uint256 balanceAfter;
         bytes memory temp;
-
-        uint256 requestLength = request.transaction.data.length;
 
         if (requestType == RequestType.TWO_BRIDGES) {
             (l1Sender, receiver, tokenAddress, toSend, temp) = getDecodedDepositL2Calldata(request.transaction.data);
@@ -235,7 +233,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
     }
 
     // deposits ERC20 token to the hyperchain where base token is ETH
-    // this funtion use requestL2TransactionTwoBridges function from shared bridge.
+    // this function use requestL2TransactionTwoBridges function from shared bridge.
     // tokenAddress should be any ERC20 token, excluding ETH
     function depositERC20ToEthChain(uint256 l2Value, address tokenAddress) private useGivenToken(tokenAddress) {
         uint256 gasPrice = 10000000;
@@ -268,11 +266,12 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         });
 
         vm.recordLogs();
-        bytes32 _resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(requestTx);
+        bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(requestTx);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         NewPriorityRequest memory request = getNewPriorityQueueFromLogs(logs);
 
-        assertNotEq(request.txHash, 0);
+        assertNotEq(resultantHash, bytes32(0));
+        assertNotEq(request.txHash, bytes32(0));
         handleRequestByMockL2Contract(request, RequestType.TWO_BRIDGES);
 
         depositsUsers[currentUser][ETH_TOKEN_ADDRESS] += mintValue;
@@ -291,7 +290,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         uint256 gasPrice = 10000000;
         vm.txGasPrice(gasPrice);
 
-        uint256 l2GasLimit = 1000000; 
+        uint256 l2GasLimit = 1000000;
         uint256 minRequiredGas = getMinRequiredGasPriceForChain(
             currentChainId,
             gasPrice,
@@ -317,11 +316,12 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         });
 
         vm.recordLogs();
-        bytes32 _resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: l2Value}(requestTx);
+        bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: l2Value}(requestTx);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         NewPriorityRequest memory request = getNewPriorityQueueFromLogs(logs);
-        assertNotEq(request.txHash, 0);
 
+        assertNotEq(resultantHash, bytes32(0));
+        assertNotEq(request.txHash, bytes32(0));
         handleRequestByMockL2Contract(request, RequestType.TWO_BRIDGES);
 
         depositsUsers[currentUser][ETH_TOKEN_ADDRESS] += l2Value;
@@ -341,7 +341,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         uint256 gasPrice = 10000000;
         vm.txGasPrice(gasPrice);
 
-        uint256 l2GasLimit = 1000000; 
+        uint256 l2GasLimit = 1000000;
         uint256 minRequiredGas = getMinRequiredGasPriceForChain(
             currentChainId,
             gasPrice,
@@ -371,11 +371,12 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         });
 
         vm.recordLogs();
-        bytes32 _resultantHash = bridgeHub.requestL2TransactionTwoBridges(requestTx);
+        bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges(requestTx);
         Vm.Log[] memory logs = vm.getRecordedLogs();
         NewPriorityRequest memory request = getNewPriorityQueueFromLogs(logs);
-        assertNotEq(request.txHash, 0);
 
+        assertNotEq(resultantHash, bytes32(0));
+        assertNotEq(request.txHash, bytes32(0));
         handleRequestByMockL2Contract(request, RequestType.TWO_BRIDGES);
 
         depositsUsers[currentUser][baseTokenAddress] += mintValue;
@@ -415,12 +416,13 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         });
 
         vm.recordLogs();
-        bytes32 _resultantHash = bridgeHub.requestL2TransactionDirect{value: mintValue}(txRequest);
+        bytes32 resultantHash = bridgeHub.requestL2TransactionDirect{value: mintValue}(txRequest);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         NewPriorityRequest memory request = getNewPriorityQueueFromLogs(logs);
-        assertNotEq(request.txHash, 0);
 
+        assertNotEq(resultantHash, bytes32(0));
+        assertNotEq(request.txHash, bytes32(0));
         handleRequestByMockL2Contract(request, RequestType.DIRECT);
 
         depositsUsers[currentUser][ETH_TOKEN_ADDRESS] += mintValue;
@@ -458,12 +460,13 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         });
 
         vm.recordLogs();
-        bytes32 _resultantHash = bridgeHub.requestL2TransactionDirect(txRequest);
+        bytes32 resultantHash = bridgeHub.requestL2TransactionDirect(txRequest);
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
         NewPriorityRequest memory request = getNewPriorityQueueFromLogs(logs);
-        assertNotEq(request.txHash, 0);
 
+        assertNotEq(resultantHash, bytes32(0));
+        assertNotEq(request.txHash, bytes32(0));
         handleRequestByMockL2Contract(request, RequestType.DIRECT);
 
         depositsUsers[currentUser][currentTokenAddress] += mintValue;
@@ -681,11 +684,7 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         super.depositERC20ToBridgeSuccess(userIndexSeed, chainIndexSeed, tokenIndexSeed, l2Value);
     }
 
-    function withdrawERC20Success(
-        uint256 userIndexSeed,
-        uint256 chainIndexSeed,
-        uint256 amountToWithdraw
-    ) public {
+    function withdrawERC20Success(uint256 userIndexSeed, uint256 chainIndexSeed, uint256 amountToWithdraw) public {
         uint64 MAX = (2 ** 32 - 1) + 0.1 ether;
         uint256 amountToWithdraw = bound(amountToWithdraw, 0.1 ether, MAX);
 
