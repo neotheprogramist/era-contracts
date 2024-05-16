@@ -161,6 +161,10 @@ contract DeployL1Script is Script {
         return addresses.bridges.sharedBridgeProxy;
     }
 
+    function getDiamondProxyAddress() public view returns (address) {
+        return addresses.stateTransition.diamondProxy;
+    }
+
     function initializeConfig() internal {
         string memory root = vm.projectRoot();
         string memory path = string.concat(
