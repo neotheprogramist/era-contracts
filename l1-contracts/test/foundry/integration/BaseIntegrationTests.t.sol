@@ -19,6 +19,8 @@ import {L1Erc721Bridge} from "./L1Erc721Bridge/L1Erc721Bridge.sol";
 
 import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 
+import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA} from "contracts/common/Config.sol";
+
 contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     address alice;
     address bob;
@@ -292,6 +294,10 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         TestnetERC721Token erc721Token = new TestnetERC721Token("TestnetERC721Token", "TET");
         uint256 hyperchainId = hyperchainIds[0];
 
+        uint256 gasPrice = 10000000;
+        uint256 l2GasLimit = 1000000;
+        vm.txGasPrice(gasPrice);
+
         uint256 mintValue = 0.1 ether;
         uint256 l2Value = 10000;
         address l2Receiver = makeAddr("receiver");
@@ -301,9 +307,8 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         assertTrue(getHyperchainBaseToken(hyperchainId) == ETH_TOKEN_ADDRESS);
 
         // mint gas for user
-        vm.txGasPrice(0.05 ether);
-        vm.deal(alice, mintValue);
-        assertEq(alice.balance, mintValue);
+        vm.deal(alice, gasPrice + mintValue);
+        assertEq(alice.balance, gasPrice + mintValue);
 
         // mint erc721 token for user
         erc721Token.mint(alice, 1);
@@ -316,23 +321,18 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         vm.prank(alice);
         erc721Token.approve(address(erc721Bridge), 1);
 
-        bytes32 canonicalHash = keccak256(abi.encode("CANONICAL_TX_HASH"));
         {
-            bytes memory aliceSecondBridgeCalldata = abi.encode(address(erc721Token), 1, l2Receiver);
-            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createMockL2TransactionRequestTwoBridges(
-                hyperchainId,
-                mintValue,
-                0,
-                l2Value,
-                address(erc721Bridge),
-                aliceSecondBridgeCalldata
-            );
-
-            vm.mockCall(
-                hyperchainAddress,
-                abi.encodeWithSelector(MailboxFacet.bridgehubRequestL2Transaction.selector),
-                abi.encode(canonicalHash)
-            );
+            bytes memory secondBridgeCallData = abi.encode(address(erc721Token), 1, l2Receiver);
+            L2TransactionRequestTwoBridgesOuter memory aliceRequest = createL2TransactionRequestTwoBridges({
+                _chainId: hyperchainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _secondBridgeAddress: address(erc721Bridge),
+                _l2Value: 0,
+                _l2GasLimit: l2GasLimit,
+                _l2GasPerPubdataByteLimit: REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
+                _secondBridgeCalldata: secondBridgeCallData
+            });
 
             vm.prank(alice);
             bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(aliceRequest);

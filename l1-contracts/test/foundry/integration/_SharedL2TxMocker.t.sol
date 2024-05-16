@@ -16,6 +16,8 @@ contract L2TxMocker is Test {
     bytes mockL2Calldata;
     bytes[] mockFactoryDeps;
 
+    mapping(uint256 chainId => address l2MockContract) public chainContracts;
+
     constructor() {
         mockRefundRecipient = makeAddr("refundrecipient");
         mockL2Contract = makeAddr("mockl2contract");
@@ -26,14 +28,39 @@ contract L2TxMocker is Test {
         mockFactoryDeps[0] = "11111111111111111111111111111111";
     }
 
-    function createMockL2TransactionRequestDirect(
-        uint256 chainId,
-        uint256 mintValue,
-        uint256 l2Value
+    function addL2ChainContract(uint256 _chainId, address _chainContract) internal {
+        chainContracts[_chainId] = _chainContract;
+    }
+
+    function createL2TransactionRequestDirect(
+        uint256 _chainId,
+        uint256 _mintValue,
+        uint256 _l2Value,
+        uint256 _l2GasLimit,
+        uint256 _l2GasPerPubdataByteLimit,
+        bytes memory _l2CallData
     ) internal returns (L2TransactionRequestDirect memory request) {
-        request.chainId = chainId;
-        request.mintValue = mintValue;
-        request.l2Value = l2Value;
+        request.chainId = _chainId;
+        request.mintValue = _mintValue;
+        request.l2Value = _l2Value;
+        request.l2GasLimit = _l2GasLimit;
+        request.l2GasPerPubdataByteLimit = _l2GasPerPubdataByteLimit;
+        request.l2Contract = chainContracts[_chainId];
+        request.l2Calldata = _l2CallData;
+
+        //mocked
+        request.factoryDeps = mockFactoryDeps;
+        request.refundRecipient = mockRefundRecipient;
+    }
+
+    function createMockL2TransactionRequestDirect(
+        uint256 _chainId,
+        uint256 _mintValue,
+        uint256 _l2Value
+    ) internal returns (L2TransactionRequestDirect memory request) {
+        request.chainId = _chainId;
+        request.mintValue = _mintValue;
+        request.l2Value = _l2Value;
 
         // mocks
         request.l2Contract = mockL2Contract;
@@ -44,24 +71,47 @@ contract L2TxMocker is Test {
         request.refundRecipient = mockRefundRecipient;
     }
 
-    function createMockL2TransactionRequestTwoBridges(
-        uint256 chainId,
-        uint256 mintValue,
-        uint256 secondBridgeValue,
-        uint256 l2Value,
-        address secondBridgeAddress,
-        bytes memory secondBridgeCalldata
+    function createL2TransactionRequestTwoBridges(
+        uint256 _chainId,
+        uint256 _mintValue,
+        uint256 _secondBridgeValue,
+        address _secondBridgeAddress,
+        uint256 _l2Value,
+        uint256 _l2GasLimit,
+        uint256 _l2GasPerPubdataByteLimit,
+        bytes memory _secondBridgeCalldata
     ) internal returns (L2TransactionRequestTwoBridgesOuter memory request) {
-        request.chainId = chainId;
-        request.mintValue = mintValue;
-        request.secondBridgeAddress = secondBridgeAddress;
-        request.secondBridgeValue = secondBridgeValue;
-        request.l2Value = l2Value;
+        request.chainId = _chainId;
+        request.mintValue = _mintValue;
+        request.secondBridgeAddress = _secondBridgeAddress;
+        request.secondBridgeValue = _secondBridgeValue;
+        request.l2Value = _l2Value;
+        request.l2GasLimit = _l2GasLimit;
+        request.l2GasPerPubdataByteLimit = _l2GasPerPubdataByteLimit;
+        request.secondBridgeCalldata = _secondBridgeCalldata;
+
+        //mocks
+        request.refundRecipient = mockRefundRecipient;
+    }
+
+    function createMockL2TransactionRequestTwoBridges(
+        uint256 _chainId,
+        uint256 _mintValue,
+        uint256 _secondBridgeValue,
+        uint256 _l2Value,
+        address _secondBridgeAddress,
+        bytes memory _secondBridgeCalldata
+    ) internal returns (L2TransactionRequestTwoBridgesOuter memory request) {
+        request.chainId = _chainId;
+        request.mintValue = _mintValue;
+        request.secondBridgeAddress = _secondBridgeAddress;
+        request.secondBridgeValue = _secondBridgeValue;
+        request.l2Value = _l2Value;
+        request.secondBridgeCalldata = _secondBridgeCalldata;
 
         // mocks
         request.l2GasLimit = mockL2GasLimit;
         request.l2GasPerPubdataByteLimit = mockL2GasPerPubdataByteLimit;
         request.refundRecipient = mockRefundRecipient;
-        request.secondBridgeCalldata = secondBridgeCalldata;
     }
 }
