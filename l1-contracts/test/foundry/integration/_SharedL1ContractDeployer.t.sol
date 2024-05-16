@@ -18,6 +18,8 @@ contract L1ContractDeployer is Test {
     address public sharedBridgeProxyAddress;
     L1SharedBridge public sharedBridge;
 
+    address diamondProxyAddress;
+
     function deployL1Contracts() internal {
         DeployL1Script l1Script = new DeployL1Script();
         l1Script.run();
@@ -30,6 +32,8 @@ contract L1ContractDeployer is Test {
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
+
+        diamondProxyAddress = l1Script.getDimondProxyAddress();
     }
 
     function registerNewToken(address _tokenAddress) internal {
