@@ -12,6 +12,7 @@ contract L1ContractDeployer is Test {
     using stdStorage for StdStorage;
 
     address bridgehubProxyAddress;
+    address diamondProxyAddress;
     address bridgehubOwnerAddress;
     Bridgehub bridgeHub;
 
@@ -24,6 +25,7 @@ contract L1ContractDeployer is Test {
 
         bridgehubOwnerAddress = l1Script.getBridgehubOwnerAddress();
         bridgehubProxyAddress = l1Script.getBridgehubProxyAddress();
+        diamondProxyAddress = l1Script.getDiamondProxyAddress();
         bridgeHub = Bridgehub(bridgehubProxyAddress);
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();

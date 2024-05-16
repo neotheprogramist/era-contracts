@@ -23,6 +23,7 @@ import {IL1ERC20Bridge} from "contracts/bridge/interfaces/IL1ERC20Bridge.sol";
 
 contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     uint256 constant TEST_USERS_COUNT = 10;
+    uint256 constant ERA_CHAIN_ID = 9;
 
     bytes32 constant NEW_PRIORITY_REQUEST_HASH =
         keccak256(
@@ -114,6 +115,15 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         currentToken = TestnetERC20Token(currentTokenAddress);
 
         _;
+    }
+
+    modifier useEra() {
+        currentChainId = hyperchainIds[0];
+        currentChainAddress = getHyperchainAddress(currentChainId);
+
+        vm.startPrank(currentChainAddress);
+        _;
+        vm.stopPrank();
     }
 
     // generate MAX_USERS addresses and append it to users array
@@ -230,6 +240,28 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
                 ) = abi.decode(log.data, (uint256, bytes32, uint64, L2CanonicalTransaction, bytes[]));
             }
         }
+    }
+
+    function eraDepositERC20Base(uint256 l2Value) private useBaseToken useEra {
+        currentToken.mint(currentUser, l2Value);
+        currentToken.approve(address(sharedBridge), l2Value);
+
+        vm.startPrank(currentChainAddress);
+        sharedBridge.bridgehubDepositBaseToken(ERA_CHAIN_ID, currentUser, currentTokenAddress, l2Value);
+        vm.stopPrank();
+        tokenSumDeposit[currentTokenAddress] += l2Value;
+        depositsUsers[currentUser][currentTokenAddress] += l2Value;
+        depositsBridge[currentChainAddress][currentTokenAddress] += l2Value;
+    }
+
+    function eraDepositETHBase(uint256 l2Value) private useBaseToken {
+        vm.deal(diamondProxyAddress, l2Value);
+        vm.startPrank(diamondProxyAddress);
+        sharedBridge.bridgehubDepositBaseToken{value: l2Value}(ERA_CHAIN_ID, currentUser, ETH_TOKEN_ADDRESS, l2Value);
+        vm.stopPrank();
+        tokenSumDeposit[ETH_TOKEN_ADDRESS] += l2Value;
+        depositsUsers[currentUser][ETH_TOKEN_ADDRESS] += l2Value;
+        depositsBridge[currentChainAddress][ETH_TOKEN_ADDRESS] += l2Value;
     }
 
     // deposits ERC20 token to the hyperchain where base token is ETH
@@ -605,6 +637,28 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    function depositBaseToBridgeOrEra(
+        uint256 userIndexSeed,
+        uint256 chainIndexSeed,
+        uint256 l2Value
+    ) public virtual useUser(userIndexSeed) useHyperchain(chainIndexSeed) useBaseToken {
+        address baseToken = getHyperchainBaseToken(currentChainId);
+
+        if (currentChainId == ERA_CHAIN_ID) {
+            if (baseToken == ETH_TOKEN_ADDRESS) {
+                eraDepositETHBase(l2Value);
+            } else {
+                eraDepositERC20Base(l2Value);
+            }
+        } else {
+            if (baseToken == ETH_TOKEN_ADDRESS) {
+                depositEthBase(l2Value);
+            } else {
+                depositERC20Base(l2Value);
+            }
+        }
+    }
+
     function depositERC20ToBridgeSuccess(
         uint256 userIndexSeed,
         uint256 chainIndexSeed,
@@ -662,6 +716,15 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
     }
 }
 
+contract BoundedBridgehubOrEraCalls is BridgeHubInvariantTests {
+    function depositBase(uint256 userIndexSeed, uint256 chainIndexSeed, uint256 l2Value) public {
+        uint64 MAX = 2 ** 64 - 1;
+        uint256 l2Value = bound(l2Value, 0.1 ether, MAX);
+        emit log_string("DEPOSIT WITH BRIDGEHUB/ERA SPLIT");
+        super.depositBaseToBridgeOrEra(userIndexSeed, chainIndexSeed, l2Value);
+    }
+}
+
 contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
     function depositEthSuccess(uint256 userIndexSeed, uint256 chainIndexSeed, uint256 l2Value) public {
         uint64 MAX = 2 ** 64 - 1;
@@ -690,6 +753,38 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
 
         emit log_string("WITHDRAW ERC20");
         super.withdrawSuccess(userIndexSeed, chainIndexSeed, amountToWithdraw);
+    }
+}
+
+contract InvariantTesterEraBridgehubBase is Test {
+    BoundedBridgehubOrEraCalls tests;
+
+    function setUp() public {
+        tests = new BoundedBridgehubOrEraCalls();
+        tests.prepare();
+        FuzzSelector memory selector = FuzzSelector({addr: address(tests), selectors: new bytes4[](1)});
+
+        selector.selectors[0] = BoundedBridgehubOrEraCalls.depositBase.selector;
+
+        targetContract(address(tests));
+        targetSelector(selector);
+    }
+
+    // Check whether the sum of ETH deposits from tests, updated on each deposit,
+    // equals the balance of L1Shared bridge.
+    function invariant_ETHbalanceStaysEqual() public {
+        assertEq(tests.tokenSumDeposit(ETH_TOKEN_ADDRESS), tests.sharedBridgeProxyAddress().balance);
+    }
+
+    // Check whether the sum of deposits for the current token from tests, updated on each deposit
+    // equals the balance of the L1Shared bridge.
+    function invariant_tokenbalanceStaysEqual() public {
+        address tokenAddress = tests.currentTokenAddress();
+
+        if (tokenAddress != ETH_TOKEN_ADDRESS) {
+            TestnetERC20Token token = TestnetERC20Token(tokenAddress);
+            assertEq(tests.tokenSumDeposit(tokenAddress), token.balanceOf(tests.sharedBridgeProxyAddress()));
+        }
     }
 }
 
