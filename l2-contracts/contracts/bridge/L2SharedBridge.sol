@@ -15,6 +15,8 @@ import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 import {L2ContractHelper, DEPLOYER_SYSTEM_CONTRACT, IContractDeployer} from "../L2ContractHelper.sol";
 import {SystemContractsCaller} from "../SystemContractsCaller.sol";
 
+import {EmptyAddress, EmptyBytes32, InvalidCaller, AddressMismatch, AmountMustBeGreaterThanZero, DeployFailed} from "../L2ContractErrors.sol";
+
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
 /// @notice The "default" bridge implementation for the ERC20 tokens. Note, that it does not
@@ -39,8 +41,6 @@ contract L2SharedBridge is IL2SharedBridge, Initializable {
 
     /// @dev Contract is expected to be used as proxy implementation.
     /// @dev Disable the initialization to prevent Parity hack.
-    uint256 immutable ERA_CHAIN_ID;
-
     constructor(uint256 _eraChainId) {
         ERA_CHAIN_ID = _eraChainId;
         _disableInitializers();
@@ -99,10 +99,15 @@ contract L2SharedBridge is IL2SharedBridge, Initializable {
         address currentL1Token = l1TokenAddress[expectedL2Token];
         if (currentL1Token == address(0)) {
             address deployedToken = _deployL2Token(_l1Token, _data);
-            require(deployedToken == expectedL2Token, "mt");
+            if (deployedToken != expectedL2Token) {
+                revert AddressMismatch(expectedL2Token, deployedToken);
+            }
+
             l1TokenAddress[expectedL2Token] = _l1Token;
         } else {
-            require(currentL1Token == _l1Token, "gg"); // Double check that the expected value equal to real one
+            if (currentL1Token != _l1Token) {
+                revert AddressMismatch(_l1Token, currentL1Token);
+            }
         }
 
         IL2StandardToken(expectedL2Token).bridgeMint(_l2Receiver, _amount);
@@ -125,12 +130,16 @@ contract L2SharedBridge is IL2SharedBridge, Initializable {
     /// @param _l2Token The L2 token address which is withdrawn
     /// @param _amount The total amount of tokens to be withdrawn
     function withdraw(address _l1Receiver, address _l2Token, uint256 _amount) external override {
-        require(_amount > 0, "Amount cannot be zero");
+        if (_amount == 0) {
+            revert AmountMustBeGreaterThanZero();
+        }
 
         IL2StandardToken(_l2Token).bridgeBurn(msg.sender, _amount);
 
         address l1Token = l1TokenAddress[_l2Token];
-        require(l1Token != address(0), "yh");
+        if (l1Token == address(0)) {
+            revert EmptyAddress();
+        }
 
         bytes memory message = _getL1WithdrawMessage(_l1Receiver, l1Token, _amount);
         L2ContractHelper.sendMessageToL1(message);
@@ -177,7 +186,9 @@ contract L2SharedBridge is IL2SharedBridge, Initializable {
         );
 
         // The deployment should be successful and return the address of the proxy
-        require(success, "mk");
+        if (!success) {
+            revert DeployFailed();
+        }
         proxy = BeaconProxy(abi.decode(returndata, (address)));
     }
 }
