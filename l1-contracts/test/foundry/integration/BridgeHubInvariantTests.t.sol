@@ -21,6 +21,9 @@ import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
 import {IL1ERC20Bridge} from "contracts/bridge/interfaces/IL1ERC20Bridge.sol";
 
+import {L1Erc721Bridge} from "./L1Erc721Bridge/L1Erc721Bridge.sol";
+import {TestnetERC721Token} from "contracts/dev-contracts/TestnetERC721Token.sol";
+
 contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, TokenDeployer, L2TxMocker {
     uint256 constant TEST_USERS_COUNT = 10;
 
@@ -48,6 +51,11 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
     address public currentChainAddress;
     address public currentTokenAddress = ETH_TOKEN_ADDRESS;
     TestnetERC20Token currentToken;
+
+    L1Erc721Bridge public erc721Bridge;
+    TestnetERC721Token public erc721Token;
+    uint256 lastTokenIdMinted = 1;
+    uint256 public mintedErc721Tokens = 0;
 
     // Amounts deposited by each user, mapped by user address and token address
     mapping(address user => mapping(address token => uint256 deposited)) public depositsUsers;
@@ -593,6 +601,66 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    function depositERC721Token(address baseToken) public useGivenToken(baseToken) {
+        uint256 gasPrice = 10000000;
+        vm.txGasPrice(gasPrice);
+
+        uint256 l2GasLimit = 1000000;
+        uint256 minRequiredGas = getMinRequiredGasPriceForChain(
+            currentChainId,
+            gasPrice,
+            l2GasLimit,
+            REQUIRED_L2_GAS_PRICE_PER_PUBDATA
+        );
+        address l2Receiver = makeAddr("receiver");
+
+        uint256 ethValue = 0;
+        uint256 mintValue = 0;
+
+        // mint gas for user
+        if (currentTokenAddress != ETH_TOKEN_ADDRESS) {
+            currentToken.mint(currentUser, minRequiredGas);
+            currentToken.approve(address(sharedBridge), minRequiredGas);
+            mintValue = minRequiredGas;
+        } else {
+            vm.deal(currentUser, minRequiredGas);
+            ethValue = minRequiredGas;
+            mintValue = minRequiredGas;
+        }
+
+        // mint erc721 token for user
+        erc721Token.mint(currentUser, lastTokenIdMinted);
+
+        // check if the user has the erc721 token
+        assertEq(erc721Token.balanceOf(currentUser), 1);
+
+        // approve the erc721 token to the erc721 bridge
+        erc721Token.approve(address(erc721Bridge), lastTokenIdMinted);
+
+        {
+            bytes memory secondBridgeCallData = abi.encode(address(erc721Token), lastTokenIdMinted, l2Receiver);
+            L2TransactionRequestTwoBridgesOuter memory request = createL2TransactionRequestTwoBridges({
+                _chainId: currentChainId,
+                _mintValue: mintValue,
+                _secondBridgeValue: 0,
+                _secondBridgeAddress: address(erc721Bridge),
+                _l2Value: 0,
+                _l2GasLimit: l2GasLimit,
+                _l2GasPerPubdataByteLimit: REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
+                _secondBridgeCalldata: secondBridgeCallData
+            });
+
+            bridgeHub.requestL2TransactionTwoBridges{value: ethValue}(request);
+        }
+
+        assertEq(erc721Token.balanceOf(currentUser), 0);
+
+        lastTokenIdMinted++;
+        mintedErc721Tokens++;
+        depositsBridge[currentChainAddress][currentTokenAddress] += minRequiredGas;
+        tokenSumDeposit[currentTokenAddress] += minRequiredGas;
+    }
+
     function depositEthToBridgeSuccess(
         uint256 userIndexSeed,
         uint256 chainIndexSeed,
@@ -638,6 +706,15 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    function depositERC721TokenSuccess(
+        uint256 userIndexSeed,
+        uint256 chainIndexSeed
+    ) public virtual useUser(userIndexSeed) useHyperchain(chainIndexSeed) {
+        address token = getHyperchainBaseToken(currentChainId);
+
+        depositERC721Token(token);
+    }
+
     function prepare() public {
         generateUserAddresses();
 
@@ -653,12 +730,29 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         addNewHyperchainToDeploy("hyperchain6", tokens[1]);
         deployHyperchains();
 
+        // create erc721 token bridge
+        erc721Bridge = new L1Erc721Bridge({
+            _l1WethAddress: ETH_TOKEN_ADDRESS,
+            _bridgehub: IBridgehub(bridgehubProxyAddress),
+            _eraChainId: 9,
+            _eraDiamondProxy: diamondProxyAddress
+        });
+
+        vm.prank(erc721Bridge.owner());
+        erc721Bridge.transferOwnership(bridgehubOwnerAddress);
+        erc721Bridge.acceptOwnership();
+
+        // register L2 shared bridge for each hyperchain
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
             address contractAddress = makeAddr(string(abi.encode("contract", i)));
             addL2ChainContract(hyperchainIds[i], contractAddress);
 
             registerL2SharedBridge(hyperchainIds[i], contractAddress);
+
+            erc721Bridge.initializeChainGovernance(hyperchainIds[i], contractAddress);
         }
+
+        erc721Token = new TestnetERC721Token("TestnetERC721Token", "TET");
     }
 }
 
@@ -691,6 +785,11 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         emit log_string("WITHDRAW ERC20");
         super.withdrawSuccess(userIndexSeed, chainIndexSeed, amountToWithdraw);
     }
+
+    function depositERC721TokenSuccesss(uint256 userIndexSeed, uint256 chainIndexSeed) public {
+        emit log_string("DEPOSIT ERC721");
+        super.depositERC721TokenSuccess(userIndexSeed, chainIndexSeed);
+    }
 }
 
 contract InvariantTesterHyperchains is Test {
@@ -700,11 +799,12 @@ contract InvariantTesterHyperchains is Test {
         tests = new BoundedBridgeHubInvariantTests();
         tests.prepare();
 
-        FuzzSelector memory selector = FuzzSelector({addr: address(tests), selectors: new bytes4[](3)});
+        FuzzSelector memory selector = FuzzSelector({addr: address(tests), selectors: new bytes4[](4)});
 
         selector.selectors[0] = BoundedBridgeHubInvariantTests.depositEthSuccess.selector;
         selector.selectors[1] = BoundedBridgeHubInvariantTests.depositERC20Success.selector;
         selector.selectors[2] = BoundedBridgeHubInvariantTests.withdrawERC20Success.selector;
+        selector.selectors[3] = BoundedBridgeHubInvariantTests.depositERC721TokenSuccesss.selector;
 
         targetContract(address(tests));
         targetSelector(selector);
@@ -772,5 +872,10 @@ contract InvariantTesterHyperchains is Test {
 
         assertEq(tests.contractDepositsSum(currentTokenAddress), sum);
         assertEq(tests.l2ValuesSum(currentTokenAddress), sum);
+    }
+
+    // Check if the sum of ERC721 tokens deposited equal the balance of the ERC721 bridge.
+    function invariant_ERC721TokenBalaceStaysEquals() public {
+        assertEq(tests.mintedErc721Tokens(), tests.erc721Token().balanceOf(address(tests.erc721Bridge())));
     }
 }
