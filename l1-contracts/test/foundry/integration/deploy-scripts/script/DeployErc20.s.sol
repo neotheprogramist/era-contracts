@@ -6,7 +6,6 @@ pragma solidity 0.8.24;
 
 import {Script, console2 as console} from "forge-std/Script.sol";
 import {stdToml} from "forge-std/StdToml.sol";
-import {Create2Factory} from "./Create2.sol";
 import {Utils} from "./Utils.sol";
 import {Vm} from "forge-std/Vm.sol";
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.24;
+
 contract Create2Factory {
     function deploy(bytes memory _bytecode, uint256 _salt) external returns (address contractAddress) {
         if (_bytecode.length == 0) {
@@ -16,6 +19,6 @@ contract Create2Factory {
             }
         }
 
-        require(contractAddress == predictedAddress, "Addresses missmatch");
+        require(contractAddress == predictedAddress, "Addresses mismatch");
     }
 }
