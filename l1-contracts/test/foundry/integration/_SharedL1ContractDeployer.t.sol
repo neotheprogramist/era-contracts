@@ -33,7 +33,7 @@ contract L1ContractDeployer is Test {
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
 
-        diamondProxyAddress = l1Script.getDimondProxyAddress();
+        diamondProxyAddress = l1Script.getDiamondProxyAddress();
     }
 
     function registerNewToken(address _tokenAddress) internal {

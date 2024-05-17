@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
 import {L2TransactionRequestDirect, L2TransactionRequestTwoBridgesOuter} from "contracts/bridgehub/IBridgehub.sol";
 import {TestnetERC20Token} from "contracts/dev-contracts/TestnetERC20Token.sol";
 import {TestnetERC721Token} from "contracts/dev-contracts/TestnetERC721Token.sol";
@@ -349,10 +347,7 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         vm.txGasPrice(gasPrice);
 
         uint256 mintValue = 0.1 ether;
-        uint256 l2Value = 10000;
         address l2Receiver = makeAddr("receiver");
-
-        address hyperchainAddress = getHyperchainAddress(hyperchainId);
 
         assertTrue(getHyperchainBaseToken(hyperchainId) == ETH_TOKEN_ADDRESS);
 
@@ -385,7 +380,7 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
             });
 
             vm.prank(alice);
-            bytes32 resultantHash = bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(aliceRequest);
+            bridgeHub.requestL2TransactionTwoBridges{value: mintValue}(aliceRequest);
         }
 
         assertEq(erc721Token.balanceOf(alice), 0);

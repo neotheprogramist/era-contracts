@@ -706,7 +706,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
-    function depositERC721TokenSuccess(
+    function depositERC721ToBridgeSuccess(
         uint256 userIndexSeed,
         uint256 chainIndexSeed
     ) public virtual useUser(userIndexSeed) useHyperchain(chainIndexSeed) {
@@ -786,9 +786,9 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         super.withdrawSuccess(userIndexSeed, chainIndexSeed, amountToWithdraw);
     }
 
-    function depositERC721TokenSuccesss(uint256 userIndexSeed, uint256 chainIndexSeed) public {
+    function depositERC721TokenSuccess(uint256 userIndexSeed, uint256 chainIndexSeed) public {
         emit log_string("DEPOSIT ERC721");
-        super.depositERC721TokenSuccess(userIndexSeed, chainIndexSeed);
+        super.depositERC721ToBridgeSuccess(userIndexSeed, chainIndexSeed);
     }
 }
 
@@ -804,7 +804,7 @@ contract InvariantTesterHyperchains is Test {
         selector.selectors[0] = BoundedBridgeHubInvariantTests.depositEthSuccess.selector;
         selector.selectors[1] = BoundedBridgeHubInvariantTests.depositERC20Success.selector;
         selector.selectors[2] = BoundedBridgeHubInvariantTests.withdrawERC20Success.selector;
-        selector.selectors[3] = BoundedBridgeHubInvariantTests.depositERC721TokenSuccesss.selector;
+        selector.selectors[3] = BoundedBridgeHubInvariantTests.depositERC721TokenSuccess.selector;
 
         targetContract(address(tests));
         targetSelector(selector);

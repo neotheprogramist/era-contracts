@@ -161,7 +161,7 @@ contract DeployL1Script is Script {
         return addresses.bridges.sharedBridgeProxy;
     }
 
-    function getDimondProxyAddress() public view returns (address) {
+    function getDiamondProxyAddress() public view returns (address) {
         return addresses.stateTransition.diamondProxy;
     }
 

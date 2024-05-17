@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity 0.8.24;
 
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
@@ -13,15 +12,9 @@ import {IL1ERC20Bridge} from "contracts/bridge/interfaces/IL1ERC20Bridge.sol";
 import {IL1SharedBridge} from "contracts/bridge/interfaces/IL1SharedBridge.sol";
 import {IL2Bridge} from "contracts/bridge/interfaces/IL2Bridge.sol";
 
-import {IMailbox} from "contracts/state-transition/chain-interfaces/IMailbox.sol";
-import {L2Message, TxStatus} from "contracts/common/Messaging.sol";
-import {UnsafeBytes} from "contracts/common/libraries/UnsafeBytes.sol";
 import {ReentrancyGuard} from "contracts/common/ReentrancyGuard.sol";
-import {AddressAliasHelper} from "contracts/vendor/AddressAliasHelper.sol";
-import {ETH_TOKEN_ADDRESS, TWO_BRIDGES_MAGIC_VALUE} from "contracts/common/Config.sol";
-import {IBridgehub, L2TransactionRequestTwoBridgesInner, L2TransactionRequestDirect} from "contracts/bridgehub/IBridgehub.sol";
-import {IGetters} from "contracts/state-transition/chain-interfaces/IGetters.sol";
-import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
+import {TWO_BRIDGES_MAGIC_VALUE} from "contracts/common/Config.sol";
+import {IBridgehub, L2TransactionRequestTwoBridgesInner} from "contracts/bridgehub/IBridgehub.sol";
 
 contract L1Erc721Bridge is
     IL1SharedBridge,
@@ -264,6 +257,8 @@ contract L1Erc721Bridge is
                             NOT IMPLEMENTED
     //////////////////////////////////////////////////////////////*/
 
+    /* solhint-disable no-unused-vars */
+
     function bridgehubDepositBaseToken(
         uint256 _chainId,
         address _prevMsgSender,
@@ -336,6 +331,8 @@ contract L1Erc721Bridge is
     ) external override onlyLegacyBridge {
         revert NotImplementedError();
     }
+
+    /* solhint-enable no-unused-vars */
 
     /*//////////////////////////////////////////////////////////////
                             PAUSE
