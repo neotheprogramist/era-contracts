@@ -7,7 +7,6 @@ pragma solidity 0.8.24;
 import {Script, console2 as console} from "forge-std/Script.sol";
 import {stdToml} from "forge-std/StdToml.sol";
 import {Utils} from "./Utils.sol";
-import {Vm} from "forge-std/Vm.sol";
 
 contract DeployErc20Script is Script {
     using stdToml for string;
@@ -16,7 +15,7 @@ contract DeployErc20Script is Script {
         TokenDescription[] tokens;
         address deployerAddress;
         address create2FactoryAddr;
-        uint256 create2FactorySalt;
+        bytes32 create2FactorySalt;
     }
 
     struct TokenDescription {
@@ -61,7 +60,7 @@ contract DeployErc20Script is Script {
         // are parsed alfabetically and not by key.
         // https://book.getfoundry.sh/cheatcodes/parse-toml
         config.create2FactoryAddr = vm.parseTomlAddress(toml, "$.create2_factory_addr");
-        config.create2FactorySalt = vm.parseTomlUint(toml, "$.create2_factory_salt");
+        config.create2FactorySalt = vm.parseTomlBytes32(toml, "$.create2_factory_salt");
         string[] memory tokens = vm.parseTomlKeys(toml, "$.tokens");
 
         for (uint256 i = 0; i < tokens.length; i++) {
@@ -124,7 +123,7 @@ contract DeployErc20Script is Script {
 
     function saveOutput() internal {
         vm.serializeAddress("root", "create2_factory_addr", config.create2FactoryAddr);
-        vm.serializeUint("root", "create2_factory_salt", config.create2FactorySalt);
+        vm.serializeBytes32("root", "create2_factory_salt", config.create2FactorySalt);
 
         string memory tokens = "";
         for (uint256 i = 0; i < config.tokens.length; i++) {

@@ -184,9 +184,9 @@ library Utils {
     /**
      * @dev Deploy a Create2Factory contract.
      */
-    function deployCreate2Factory(uint256 _salt) internal returns (address factory) {
+    function deployCreate2Factory(bytes32 _salt) internal returns (address factory) {
         vm.startBroadcast();
-        Create2Factory fac = new Create2Factory{salt: bytes32(_salt)}();
+        Create2Factory fac = new Create2Factory{salt: _salt}();
         factory = address(fac);
         vm.stopBroadcast();
         require(factory != address(0), "Failed to deploy Create2Factory");
@@ -196,7 +196,7 @@ library Utils {
     /**
      * @dev Deploys contract using CREATE2.
      */
-    function deployViaCreate2(bytes memory _bytecode, uint256 _salt, address _factory) internal returns (address) {
+    function deployViaCreate2(bytes memory _bytecode, bytes32 _salt, address _factory) internal returns (address) {
         Create2Factory factory = Create2Factory(_factory);
         return factory.deploy(_bytecode, _salt);
     }

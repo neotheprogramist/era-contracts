@@ -83,7 +83,7 @@ contract DeployL1Script is Script {
     }
 
     struct ContractsConfig {
-        uint256 create2FactorySalt;
+        bytes32 create2FactorySalt;
         address create2FactoryAddr;
         address multicall3Addr;
         uint256 validatorTimelockExecutionDelay;
@@ -182,7 +182,7 @@ contract DeployL1Script is Script {
         );
         config.contracts.governanceMinDelay = toml.readUint("$.contracts.governance_min_delay");
         config.contracts.maxNumberOfHyperchains = toml.readUint("$.contracts.max_number_of_hyperchains");
-        config.contracts.create2FactorySalt = toml.readUint("$.contracts.create2_factory_salt");
+        config.contracts.create2FactorySalt = toml.readBytes32("$.contracts.create2_factory_salt");
         if (vm.keyExistsToml(toml, "$.contracts.create2_factory_addr")) {
             config.contracts.create2FactoryAddr = toml.readAddress("$.contracts.create2_factory_addr");
         }
@@ -665,7 +665,7 @@ contract DeployL1Script is Script {
         vm.serializeAddress("l1", "blob_versioned_hash_retriever_addr", addresses.blobVersionedHashRetriever);
         vm.serializeAddress("l1", "validator_timelock_addr", addresses.validatorTimelock);
         vm.serializeAddress("l1", "create2_factory_addr", addresses.create2Factory);
-        vm.serializeUint("l1", "create2_factory_salt", config.contracts.create2FactorySalt);
+        vm.serializeBytes32("l1", "create2_factory_salt", config.contracts.create2FactorySalt);
         vm.serializeAddress("l1", "multicall3_addr", config.contracts.multicall3Addr);
         vm.serializeUint("l1", "l1_chain_id", config.l1ChainId);
         vm.serializeUint("l1", "era_chain_id", config.eraChainId);
