@@ -23,6 +23,20 @@ contract ExecuteUpgradeTest is AdminTest {
         vm.startPrank(nonStateTransitionManager);
         adminFacet.executeUpgrade(diamondCutData);
     }
+
+    function test_SuccessfulExecuteUpgrade() public {
+        Diamond.DiamondCutData memory diamondCutData = Diamond.DiamondCutData({
+            facetCuts: new Diamond.FacetCut[](0),
+            initAddress: address(0),
+            initCalldata: new bytes(0)
+        });
+
+        vm.expectEmit(true, true, true, true, address(adminFacet));
+        emit ExecuteUpgrade(diamondCutData);
+
+        vm.startPrank(utilsFacet.util_getStateTransitionManager());
+        adminFacet.executeUpgrade(diamondCutData);
+    }
 }
 
 interface IDiamondLibrary {
