@@ -5,12 +5,39 @@ import {Vm} from "forge-std/Test.sol";
 import {Utils, L2_BOOTLOADER_ADDRESS, L2_SYSTEM_CONTEXT_ADDRESS} from "../Utils/Utils.sol";
 import {ExecutorTest} from "./_Executor_Shared.t.sol";
 
-import {IExecutor, MAX_NUMBER_OF_BLOBS} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
+import {IExecutor, MAX_NUMBER_OF_BLOBS, PubdataSource} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {SystemLogKey} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {POINT_EVALUATION_PRECOMPILE_ADDR} from "contracts/common/Config.sol";
 import {L2_PUBDATA_CHUNK_PUBLISHER_ADDR} from "contracts/common/L2ContractAddresses.sol";
+import {IStateTransitionManager} from "contracts/state-transition/IStateTransitionManager.sol";
 
 contract CommittingTest is ExecutorTest {
+    function test_revertWhen_wrongCaller(address randomCaller) public {
+        if (randomCaller != validator) {
+            IExecutor.CommitBatchInfo[] memory newCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+            newCommitBatchInfoArray[0] = newCommitBatchInfo;
+
+            vm.prank(randomCaller);
+            vm.expectRevert("Hyperchain: not validator");
+            executor.commitBatches(genesisStoredBatchInfo, newCommitBatchInfoArray);
+        }
+    }
+
+    function test_RevertWhen_wrongProtocolVersion() public {
+        IExecutor.CommitBatchInfo[] memory newCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        newCommitBatchInfoArray[0] = newCommitBatchInfo;
+
+        vm.mockCall(
+            stmAddress,
+            abi.encodeWithSelector(IStateTransitionManager.protocolVersionIsActive.selector),
+            abi.encode(bool(false))
+        );
+
+        vm.prank(validator);
+        vm.expectRevert("Executor facet: wrong protocol version");
+        executor.commitBatches(genesisStoredBatchInfo, newCommitBatchInfoArray);
+    }
+
     function test_RevertWhen_CommittingWithWrongLastCommittedBatchData() public {
         IExecutor.CommitBatchInfo[] memory newCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
         newCommitBatchInfoArray[0] = newCommitBatchInfo;
@@ -22,6 +49,23 @@ contract CommittingTest is ExecutorTest {
 
         vm.expectRevert(bytes.concat("i"));
         executor.commitBatches(wrongGenesisStoredBatchInfo, newCommitBatchInfoArray);
+    }
+
+    function test_RevertWhen_wrongPubdataSource(uint8 pubdataSource) public {
+        if (pubdataSource == uint8(PubdataSource.Blob) || pubdataSource == uint8(PubdataSource.Calldata)) {
+            return;
+        }
+
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.batchNumber = 1;
+        wrongNewCommitBatchInfo.pubdataCommitments[0] = bytes1(pubdataSource);
+
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("us"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
     function test_RevertWhen_CommittingWithWrongOrderOfBatches() public {
@@ -257,28 +301,41 @@ contract CommittingTest is ExecutorTest {
     }
 
     function test_RevertWhen_SystemLogIsFromIncorrectAddress() public {
-        bytes32[7] memory values = [
+        bytes32[13] memory values = [
             bytes32(""),
             bytes32(0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563),
             bytes32(""),
             bytes32(""),
             bytes32(""),
             keccak256(""),
+            bytes32(""),
+            bytes32(""),
+            bytes32(""),
+            bytes32(""),
+            bytes32(""),
+            bytes32(""),
             bytes32("")
         ];
 
-        bytes[7] memory errors = [
+        bytes[13] memory errors = [
             bytes.concat("lm"),
             bytes.concat("ln"),
             bytes.concat("lb"),
             bytes.concat("sc"),
             bytes.concat("sv"),
             bytes.concat("bl"),
-            bytes.concat("bk")
+            bytes.concat("bk"),
+            bytes.concat("pc"),
+            bytes.concat("pc"),
+            bytes.concat("pc"),
+            bytes.concat("pc"),
+            bytes.concat("pc"),
+            bytes.concat("pc")
         ];
 
         for (uint256 i = 0; i < values.length; i++) {
             bytes[] memory wrongL2Logs = Utils.createSystemLogs();
+
             address wrongAddress = makeAddr("randomAddress");
             wrongL2Logs[i] = Utils.constructL2Log(true, wrongAddress, i, values[i]);
 
@@ -293,6 +350,14 @@ contract CommittingTest is ExecutorTest {
             vm.expectRevert(errors[i]);
             executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
         }
+
+        //      logs[13] = constructL2Log(
+        //     true,
+        //     L2_BOOTLOADER_ADDRESS,
+        //     uint256(SystemLogKey.EXPECTED_SYSTEM_CONTRACT_UPGRADE_TX_HASH_KEY),
+        //     bytes32(0)
+        // );
+
     }
 
     function test_RevertWhen_SystemLogIsMissing() public {
@@ -407,16 +472,9 @@ contract CommittingTest is ExecutorTest {
         correctCommitBatchInfoArray[0].pubdataCommitments = pubdataCommitment;
 
         vm.prank(validator);
-
-        vm.recordLogs();
-
+        vm.expectEmit(true, false, false, false, address(executor));
+        emit BlockCommit(1, bytes32(0), bytes32(0));
         executor.commitBatches(genesisStoredBatchInfo, correctCommitBatchInfoArray);
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-
-        assertEq(entries.length, 1);
-        assertEq(entries[0].topics[0], keccak256("BlockCommit(uint256,bytes32,bytes32)"));
-        assertEq(entries[0].topics[1], bytes32(uint256(1))); // batchNumber
 
         uint256 totalBatchesCommitted = getters.getTotalBatchesCommitted();
         assertEq(totalBatchesCommitted, 1);
@@ -480,16 +538,9 @@ contract CommittingTest is ExecutorTest {
         correctCommitBatchInfoArray[0].pubdataCommitments = pubdataCommitment;
 
         vm.prank(validator);
-
-        vm.recordLogs();
-
+        vm.expectEmit(true, false, false, false, address(executor));
+        emit BlockCommit(1, bytes32(0), bytes32(0));
         executor.commitBatches(genesisStoredBatchInfo, correctCommitBatchInfoArray);
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-
-        assertEq(entries.length, 1);
-        assertEq(entries[0].topics[0], keccak256("BlockCommit(uint256,bytes32,bytes32)"));
-        assertEq(entries[0].topics[1], bytes32(uint256(1))); // batchNumber
 
         uint256 totalBatchesCommitted = getters.getTotalBatchesCommitted();
         assertEq(totalBatchesCommitted, 1);
