@@ -162,6 +162,10 @@ contract UtilsFacet is ZkSyncHyperchainBase {
         return s.isFrozen;
     }
 
+    function util_setl2SystemContractsUpgradeTxHash(bytes32 _l2SystemContractsUpgradeTxHash) external {
+        s.l2SystemContractsUpgradeTxHash = _l2SystemContractsUpgradeTxHash;
+    }
+
     // add this to be excluded from coverage report
     function test() internal virtual {}
 }
