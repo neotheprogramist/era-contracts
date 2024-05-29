@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {Upgrade_v1_4_1} from "contracts/upgrades/Upgrade_v1_4_1.sol";
 import {PubdataPricingMode, FeeParams} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
+import {ZkSyncHyperchainStorage} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
 
 import {BaseUpgrade} from "./_SharedBaseUpgrade.t.sol";
 import {BaseUpgradeSetters} from "./_SharedBaseUpgradeSetters.t.sol";
@@ -12,6 +13,9 @@ contract DummyUpgrade_v1_4_1 is Upgrade_v1_4_1, BaseUpgradeSetters {
     function updateFeeParams(FeeParams memory _newFeeParams) public {
         changeFeeParams(_newFeeParams);
     }
+
+    // add this to be excluded from coverage report
+    function test() internal override {}
 }
 
 contract Upgrade_v1_4_1Test is BaseUpgrade {
