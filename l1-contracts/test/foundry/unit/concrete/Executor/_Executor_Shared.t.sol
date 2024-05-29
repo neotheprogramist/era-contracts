@@ -20,8 +20,11 @@ import {IExecutor} from "contracts/state-transition/chain-interfaces/IExecutor.s
 import {IVerifier} from "contracts/state-transition/chain-interfaces/IVerifier.sol";
 import {Diamond} from "contracts/state-transition/libraries/Diamond.sol";
 import {TestnetVerifier} from "contracts/state-transition/TestnetVerifier.sol";
+import {Utils} from "foundry-test/unit/concrete/Utils/Utils.sol";
+import {UtilsFacet} from "foundry-test/unit/concrete/Utils/UtilsFacet.sol";
 
 contract ExecutorTest is Test {
+    address internal stmAddress;
     address internal owner;
     address internal validator;
     address internal randomSigner;
@@ -30,6 +33,7 @@ contract ExecutorTest is Test {
     TestExecutor internal executor;
     GettersFacet internal getters;
     MailboxFacet internal mailbox;
+    UtilsFacet internal utils;
     bytes32 internal newCommittedBlockBatchHash;
     bytes32 internal newCommittedBlockCommitment;
     uint256 internal currentTimestamp;
@@ -40,6 +44,8 @@ contract ExecutorTest is Test {
 
     IExecutor.StoredBatchInfo internal genesisStoredBatchInfo;
     IExecutor.ProofInput internal proofInput;
+
+    event BlockCommit(uint256 indexed batchNumber, bytes32 indexed batchHash, bytes32 indexed commitment);
 
     function getAdminSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](11);
@@ -133,6 +139,7 @@ contract ExecutorTest is Test {
         admin = new AdminFacet();
         getters = new GettersFacet();
         mailbox = new MailboxFacet(eraChainId);
+        utils = new UtilsFacet();
 
         DummyStateTransitionManager stateTransitionManager = new DummyStateTransitionManager();
         vm.mockCall(
@@ -140,6 +147,7 @@ contract ExecutorTest is Test {
             abi.encodeWithSelector(IStateTransitionManager.protocolVersionIsActive.selector),
             abi.encode(bool(true))
         );
+        stmAddress = address(stateTransitionManager);
         DiamondInit diamondInit = new DiamondInit();
 
         bytes8 dummyHash = 0x1234567890123456;
@@ -183,7 +191,7 @@ contract ExecutorTest is Test {
 
         bytes memory diamondInitData = abi.encodeWithSelector(diamondInit.initialize.selector, params);
 
-        Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](4);
+        Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](5);
         facetCuts[0] = Diamond.FacetCut({
             facet: address(admin),
             action: Diamond.Action.Add,
@@ -208,6 +216,12 @@ contract ExecutorTest is Test {
             isFreezable: true,
             selectors: getMailboxSelectors()
         });
+        facetCuts[4] = Diamond.FacetCut({
+            facet: address(utils),
+            action: Diamond.Action.Add,
+            isFreezable: true,
+            selectors: Utils.getUtilsFacetSelectors()
+        });
 
         Diamond.DiamondCutData memory diamondCutData = Diamond.DiamondCutData({
             facetCuts: facetCuts,
@@ -222,6 +236,7 @@ contract ExecutorTest is Test {
         getters = GettersFacet(address(diamondProxy));
         mailbox = MailboxFacet(address(diamondProxy));
         admin = AdminFacet(address(diamondProxy));
+        utils = UtilsFacet(address(diamondProxy));
 
         // Initiate the token multiplier to enable L1 -> L2 transactions.
         vm.prank(address(stateTransitionManager));
