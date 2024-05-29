@@ -300,8 +300,17 @@ contract CommittingTest is ExecutorTest {
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
+    function _getCommitInfoWithLogs(bytes[] memory logs) internal returns (IExecutor.CommitBatchInfo[] memory) {
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(logs);
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        return wrongNewCommitBatchInfoArray;
+    }
+
     function test_RevertWhen_SystemLogIsFromIncorrectAddress() public {
-        bytes32[13] memory values = [
+        bytes32[15] memory values = [
             bytes32(""),
             bytes32(0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563),
             bytes32(""),
@@ -314,10 +323,12 @@ contract CommittingTest is ExecutorTest {
             bytes32(""),
             bytes32(""),
             bytes32(""),
+            bytes32(""),
+            bytes32(""),
             bytes32("")
         ];
 
-        bytes[13] memory errors = [
+        bytes[15] memory errors = [
             bytes.concat("lm"),
             bytes.concat("ln"),
             bytes.concat("lb"),
@@ -330,34 +341,62 @@ contract CommittingTest is ExecutorTest {
             bytes.concat("pc"),
             bytes.concat("pc"),
             bytes.concat("pc"),
-            bytes.concat("pc")
+            bytes.concat("pc"),
+            bytes.concat("bu"),
+            bytes.concat("ul")
         ];
 
-        for (uint256 i = 0; i < values.length; i++) {
-            bytes[] memory wrongL2Logs = Utils.createSystemLogs();
+        address wrongAddress = makeAddr("randomAddress");
 
-            address wrongAddress = makeAddr("randomAddress");
-            wrongL2Logs[i] = Utils.constructL2Log(true, wrongAddress, i, values[i]);
+        for (uint256 i = 0; i < values.length; i++) {
+            bytes[] memory wrongL2Logs = Utils.createSystemLogsWithUpgradeTransaction(bytes32(""));
+            bytes[] memory tooManyLogs = new bytes[](15);
+            for (uint256 i = 0; i < wrongL2Logs.length; i++) {
+                tooManyLogs[i] = wrongL2Logs[i];
+            }
+
+            tooManyLogs[i] = Utils.constructL2Log(true, wrongAddress, i, values[i]);
 
             IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
-            wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
-
+            wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(tooManyLogs);
             IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
             wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
 
             vm.prank(validator);
-
             vm.expectRevert(errors[i]);
             executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
         }
 
-        //      logs[13] = constructL2Log(
-        //     true,
-        //     L2_BOOTLOADER_ADDRESS,
-        //     uint256(SystemLogKey.EXPECTED_SYSTEM_CONTRACT_UPGRADE_TX_HASH_KEY),
-        //     bytes32(0)
-        // );
+        bytes[] memory logsWithWrongHash = Utils.createSystemLogsWithUpgradeTransaction(bytes32(""));
+        logsWithWrongHash[logsWithWrongHash.length - 1] = Utils.constructL2Log(
+            true,
+            L2_BOOTLOADER_ADDRESS,
+            logsWithWrongHash.length - 1,
+            bytes32("1")
+        );
 
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(logsWithWrongHash);
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("ut"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
+    function test_RevertWhen_SystemLogsBadLength() public {
+        utils.util_setl2SystemContractsUpgradeTxHash(bytes32("not default"));
+        bytes[] memory logs = Utils.createSystemLogsWithUpgradeTransaction(bytes32("not default"));
+        delete logs[0];
+
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(logs);
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("b8"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
     function test_RevertWhen_SystemLogIsMissing() public {
@@ -367,12 +406,10 @@ contract CommittingTest is ExecutorTest {
 
             IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
             wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(l2Logs);
-
             IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
             wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
 
             vm.prank(validator);
-
             vm.expectRevert(bytes.concat("b7"));
             executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
         }
