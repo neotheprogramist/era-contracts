@@ -75,10 +75,7 @@ contract ExperimentalBridgeTest is Test {
 
     function test_newPendingAdminReplacesPrevious(address randomDeployer, address otherRandomDeployer) public {
         assertEq(address(0), bridgeHub.admin());
-
-        if (randomDeployer == otherRandomDeployer) {
-            return;
-        }
+        vm.assume(randomDeployer != otherRandomDeployer);
 
         vm.prank(bridgeHub.owner());
         bridgeHub.setPendingAdmin(randomDeployer);
@@ -94,13 +91,10 @@ contract ExperimentalBridgeTest is Test {
 
     function test_onlyPendingAdminCanAccept(address randomDeployer, address otherRandomDeployer) public {
         assertEq(address(0), bridgeHub.admin());
+        vm.assume(randomDeployer != otherRandomDeployer);
 
         vm.prank(bridgeHub.owner());
         bridgeHub.setPendingAdmin(randomDeployer);
-
-        if (randomDeployer == otherRandomDeployer) {
-            return;
-        }
 
         vm.expectRevert(bytes("n42"));
         vm.prank(otherRandomDeployer);
@@ -1043,12 +1037,33 @@ contract ExperimentalBridgeTest is Test {
             abi.encode(canonicalHash)
         );
 
-        if (secondBridgeAddressValue <= uint160(type(uint16).max)) {
-            l2TxnReq2BridgeOut.secondBridgeAddress = address(secondBridgeAddressValue);
-            vm.expectRevert("Bridgehub: second bridge address too low");
-            vm.prank(randomCaller);
-            bridgeHub.requestL2TransactionTwoBridges{value: randomCaller.balance}(l2TxnReq2BridgeOut);
-        }
+        L2TransactionRequestTwoBridgesInner memory outputRequest = L2TransactionRequestTwoBridgesInner({
+            magicValue: TWO_BRIDGES_MAGIC_VALUE,
+            l2Contract: address(0),
+            l2Calldata: abi.encode(""),
+            factoryDeps: new bytes[](0),
+            txDataHash: bytes32("")
+        });
+        secondBridgeAddressValue = uint160(bound(uint256(secondBridgeAddressValue), 0, uint256(type(uint16).max)));
+        address secondBridgeAddress = address(secondBridgeAddressValue);
+
+        vm.mockCall(
+            address(secondBridgeAddressValue),
+            l2TxnReq2BridgeOut.secondBridgeValue,
+            abi.encodeWithSelector(
+                IL1SharedBridge.bridgehubDeposit.selector,
+                l2TxnReq2BridgeOut.chainId,
+                randomCaller,
+                l2TxnReq2BridgeOut.l2Value,
+                l2TxnReq2BridgeOut.secondBridgeCalldata
+            ),
+            abi.encode(outputRequest)
+        );
+
+        l2TxnReq2BridgeOut.secondBridgeAddress = address(secondBridgeAddressValue);
+        vm.expectRevert("Bridgehub: second bridge address too low");
+        vm.prank(randomCaller);
+        bridgeHub.requestL2TransactionTwoBridges{value: randomCaller.balance}(l2TxnReq2BridgeOut);
     }
 
     function test_requestL2TransactionTwoBridges_ERC20ToNonBase(
