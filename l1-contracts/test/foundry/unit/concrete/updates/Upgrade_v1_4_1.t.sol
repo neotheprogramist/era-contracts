@@ -7,9 +7,9 @@ import {PubdataPricingMode, FeeParams} from "contracts/state-transition/chain-de
 import {ZkSyncHyperchainStorage} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
 
 import {BaseUpgrade} from "./_SharedBaseUpgrade.t.sol";
-import {BaseUpgradeSetters} from "./_SharedBaseUpgradeSetters.t.sol";
+import {BaseUpgradeUtils} from "./_SharedBaseUpgradeUtils.t.sol";
 
-contract DummyUpgrade_v1_4_1 is Upgrade_v1_4_1, BaseUpgradeSetters {
+contract DummyUpgrade_v1_4_1 is Upgrade_v1_4_1, BaseUpgradeUtils {
     function updateFeeParams(FeeParams memory _newFeeParams) public {
         changeFeeParams(_newFeeParams);
     }
@@ -46,5 +46,17 @@ contract Upgrade_v1_4_1Test is BaseUpgrade {
 
     function test_SuccessUpdate() public {
         baseZkSyncUpgrade.upgrade(proposedUpgrade);
+
+        assertEq(baseZkSyncUpgrade.getProtocolVersion(), proposedUpgrade.newProtocolVersion);
+        assertEq(baseZkSyncUpgrade.getVerifier(), proposedUpgrade.verifier);
+        assertEq(baseZkSyncUpgrade.getL2DefaultAccountBytecodeHash(), proposedUpgrade.defaultAccountHash);
+        assertEq(baseZkSyncUpgrade.getL2BootloaderBytecodeHash(), proposedUpgrade.bootloaderHash);
+
+        FeeParams memory feeParams = baseZkSyncUpgrade.getFeeParams();
+        assertEq(feeParams.batchOverheadL1Gas, 1_000_000);
+        assertEq(feeParams.maxPubdataPerBatch, 120_000);
+        assertEq(feeParams.maxL2GasPerBatch, 80_000_000);
+        assertEq(feeParams.priorityTxMaxPubdata, 99_000);
+        assertEq(feeParams.minimalL2GasPrice, 250_000_000);
     }
 }
