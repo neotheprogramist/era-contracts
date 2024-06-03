@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import {Vm} from "forge-std/Test.sol";
-import {Utils, L2_BOOTLOADER_ADDRESS, L2_SYSTEM_CONTEXT_ADDRESS} from "../Utils/Utils.sol";
+import {Utils, L2_BOOTLOADER_ADDRESS, L2_SYSTEM_CONTEXT_ADDRESS, DEFAULT_L2_LOGS_TREE_ROOT_HASH} from "../Utils/Utils.sol";
 import {ExecutorTest} from "./_Executor_Shared.t.sol";
 import {VerifierParams, FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
 import {IExecutor, MAX_NUMBER_OF_BLOBS, PubdataSource, BLOB_SIZE_BYTES} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
@@ -125,6 +125,43 @@ contract CommittingTest is ExecutorTest {
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
+    function test_RevertWhen_previousTimestampWrong() public {
+        IExecutor.StoredBatchInfo memory someStoredBatchInfo = IExecutor.StoredBatchInfo({
+            batchNumber: 1,
+            batchHash: bytes32(""),
+            indexRepeatedStorageChanges: 0,
+            numberOfLayer1Txs: 0,
+            priorityOperationsHash: keccak256(""),
+            l2LogsTreeRoot: DEFAULT_L2_LOGS_TREE_ROOT_HASH,
+            timestamp: 101,
+            commitment: bytes32("")
+        });
+
+        bytes32 _storedBatchHash = keccak256(abi.encode(someStoredBatchInfo));
+        utils.util_setStoredBatchHashes(1, _storedBatchHash);
+        utils.util_setTotalBatchesCommitted(1);
+
+        bytes[] memory wrongL2Logs = Utils.createSystemLogs();
+        wrongL2Logs[uint256(uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY))] = Utils.constructL2Log(
+            true,
+            L2_SYSTEM_CONTEXT_ADDRESS,
+            uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY),
+            Utils.packBatchTimestampAndBlockTimestamp(100, 100)
+        );
+
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
+        wrongNewCommitBatchInfo.timestamp = uint64(100);
+        wrongNewCommitBatchInfo.batchNumber = 2;
+
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("h3"));
+        executor.commitBatches(someStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
     function test_RevertWhen_CommittingTooBigLastL2BatchTimestamp() public {
         uint64 wrongNewBatchTimestamp = 0xffffffff;
         bytes[] memory wrongL2Logs = Utils.createSystemLogs();
@@ -212,6 +249,38 @@ contract CommittingTest is ExecutorTest {
 
         vm.prank(validator);
         vm.expectRevert(bytes.concat("cz"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
+    function hashSlice(bytes memory data, uint256 start, uint256 end) internal pure returns (bytes32) {
+        bytes memory slice = new bytes(end - start);
+        for (uint256 i = start; i < end; i++) {
+            slice[i - start] = data[i];
+        }
+        return keccak256(slice);
+    }
+
+    function test_RevertWhen_pubdataHashAndCommitmentMissmatch() public {
+        bytes[] memory wrongL2Logs = Utils.createSystemLogs();
+        bytes memory pubdataCommitment = new bytes(64);
+        bytes32 pubdataCommitmentHash = hashSlice(pubdataCommitment, 1, pubdataCommitment.length - 32);
+        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
+            true,
+            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
+            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
+            bytes32("")
+        );
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.batchNumber = 1;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
+        wrongNewCommitBatchInfo.pubdataCommitments = pubdataCommitment;
+        wrongNewCommitBatchInfo.pubdataCommitments[0] = bytes1(uint8(PubdataSource.Calldata));
+
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("wp"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 

@@ -166,6 +166,10 @@ contract UtilsFacet is ZkSyncHyperchainBase {
         s.l2SystemContractsUpgradeTxHash = _l2SystemContractsUpgradeTxHash;
     }
 
+    function util_setTotalBatchesCommitted(uint256 _totalBatchesCommitted) external {
+        s.totalBatchesCommitted = _totalBatchesCommitted;
+    }
+
     // add this to be excluded from coverage report
     function test() internal virtual {}
 }
