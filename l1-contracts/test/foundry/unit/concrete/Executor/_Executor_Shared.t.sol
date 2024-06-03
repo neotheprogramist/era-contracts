@@ -116,7 +116,7 @@ contract ExecutorTest is Test {
         return selectors;
     }
 
-    function defaultFeeParams() private pure returns (FeeParams memory feeParams) {
+    function defaultFeeParams() internal pure returns (FeeParams memory feeParams) {
         feeParams = FeeParams({
             pubdataPricingMode: PubdataPricingMode.Rollup,
             batchOverheadL1Gas: 1_000_000,
