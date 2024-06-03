@@ -10,6 +10,7 @@ import {ILegacyGetters} from "contracts/state-transition/chain-interfaces/ILegac
 import {IVerifier} from "contracts/state-transition/chain-interfaces/IVerifier.sol";
 import {PriorityOperation} from "contracts/state-transition/libraries/PriorityQueue.sol";
 import {VerifierParams} from "contracts/state-transition/chain-interfaces/IVerifier.sol";
+import {FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
 
 contract GettersFacetWrapper is GettersFacet {
     function util_setVerifier(address _verifier) external {
@@ -18,6 +19,18 @@ contract GettersFacetWrapper is GettersFacet {
 
     function util_setAdmin(address _admin) external {
         s.admin = _admin;
+    }
+
+    function util_setGasNominator(uint128 _baseTokenGasPriceMultiplierNominator) external {
+        s.baseTokenGasPriceMultiplierNominator = _baseTokenGasPriceMultiplierNominator;
+    }
+
+    function util_setGasDenominator(uint128 _baseTokenGasPriceMultiplierDenominator) external {
+        s.baseTokenGasPriceMultiplierDenominator = _baseTokenGasPriceMultiplierDenominator;
+    }
+
+    function util_setFeeParams(FeeParams memory _feeParams) external {
+        s.feeParams = _feeParams;
     }
 
     function util_setPendingAdmin(address _pendingAdmin) external {
