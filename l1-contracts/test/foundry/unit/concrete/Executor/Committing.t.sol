@@ -5,7 +5,7 @@ import {Vm} from "forge-std/Test.sol";
 import {Utils, L2_BOOTLOADER_ADDRESS, L2_SYSTEM_CONTEXT_ADDRESS} from "../Utils/Utils.sol";
 import {ExecutorTest} from "./_Executor_Shared.t.sol";
 import {VerifierParams, FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
-import {IExecutor, MAX_NUMBER_OF_BLOBS, PubdataSource} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
+import {IExecutor, MAX_NUMBER_OF_BLOBS, PubdataSource, BLOB_SIZE_BYTES} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {SystemLogKey} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {POINT_EVALUATION_PRECOMPILE_ADDR} from "contracts/common/Config.sol";
 import {L2_PUBDATA_CHUNK_PUBLISHER_ADDR, L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
@@ -197,6 +197,21 @@ contract CommittingTest is ExecutorTest {
 
         vm.prank(validator);
         vm.expectRevert(bytes.concat("tb"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
+    function test_RevertWhen_tooLongPubdataCommitment() public {
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.batchNumber = 1;
+        bytes memory pubdataCommitment = new bytes(BLOB_SIZE_BYTES + 1);
+        wrongNewCommitBatchInfo.pubdataCommitments = pubdataCommitment;
+        wrongNewCommitBatchInfo.pubdataCommitments[0] = bytes1(uint8(PubdataSource.Calldata));
+
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("cz"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
