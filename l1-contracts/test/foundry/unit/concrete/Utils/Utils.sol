@@ -256,7 +256,7 @@ library Utils {
     }
 
     function getUtilsFacetSelectors() public pure returns (bytes4[] memory) {
-        bytes4[] memory selectors = new bytes4[](39);
+        bytes4[] memory selectors = new bytes4[](40);
         selectors[0] = UtilsFacet.util_setChainId.selector;
         selectors[1] = UtilsFacet.util_getChainId.selector;
         selectors[2] = UtilsFacet.util_setBridgehub.selector;
@@ -296,6 +296,7 @@ library Utils {
         selectors[36] = UtilsFacet.util_setTransactionFilterer.selector;
         selectors[37] = UtilsFacet.util_setBaseTokenGasPriceMultiplierDenominator.selector;
         selectors[38] = UtilsFacet.util_setl2SystemContractsUpgradeTxHash.selector;
+        selectors[39] = UtilsFacet.util_setTotalBatchesCommitted.selector;
         return selectors;
     }
 
