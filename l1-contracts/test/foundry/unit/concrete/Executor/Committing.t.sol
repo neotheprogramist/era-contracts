@@ -4,11 +4,11 @@ pragma solidity 0.8.24;
 import {Vm} from "forge-std/Test.sol";
 import {Utils, L2_BOOTLOADER_ADDRESS, L2_SYSTEM_CONTEXT_ADDRESS} from "../Utils/Utils.sol";
 import {ExecutorTest} from "./_Executor_Shared.t.sol";
-
+import {VerifierParams, FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-deps/ZkSyncHyperchainStorage.sol";
 import {IExecutor, MAX_NUMBER_OF_BLOBS, PubdataSource} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {SystemLogKey} from "contracts/state-transition/chain-interfaces/IExecutor.sol";
 import {POINT_EVALUATION_PRECOMPILE_ADDR} from "contracts/common/Config.sol";
-import {L2_PUBDATA_CHUNK_PUBLISHER_ADDR} from "contracts/common/L2ContractAddresses.sol";
+import {L2_PUBDATA_CHUNK_PUBLISHER_ADDR, L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
 import {IStateTransitionManager} from "contracts/state-transition/IStateTransitionManager.sol";
 
 contract CommittingTest is ExecutorTest {
@@ -52,9 +52,7 @@ contract CommittingTest is ExecutorTest {
     }
 
     function test_RevertWhen_wrongPubdataSource(uint8 pubdataSource) public {
-        if (pubdataSource == uint8(PubdataSource.Blob) || pubdataSource == uint8(PubdataSource.Calldata)) {
-            return;
-        }
+        vm.assume(pubdataSource != uint8(PubdataSource.Blob) && pubdataSource != uint8(PubdataSource.Calldata));
 
         IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
         wrongNewCommitBatchInfo.batchNumber = 1;
@@ -147,6 +145,58 @@ contract CommittingTest is ExecutorTest {
         vm.prank(validator);
 
         vm.expectRevert(bytes.concat("h2"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
+    function test_RevertWhen_validiumDataNotEmpty() public {
+        FeeParams memory feeParams = defaultFeeParams();
+        feeParams.pubdataPricingMode = PubdataPricingMode.Validium;
+        utils.util_setFeeParams(feeParams);
+
+        bytes[] memory wrongL2Logs = Utils.createSystemLogs();
+        bytes memory pubdataCommitment = "\x01";
+
+        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
+            true,
+            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
+            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
+            bytes32("")
+        );
+
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("EF: v0l"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+
+        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
+            true,
+            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
+            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
+            bytes32("f")
+        );
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("v0h"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+
+        wrongL2Logs = Utils.createSystemLogs();
+        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
+            true,
+            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
+            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
+            bytes32("")
+        );
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
+        wrongNewCommitBatchInfo.pubdataCommitments = pubdataCommitment;
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("tb"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
