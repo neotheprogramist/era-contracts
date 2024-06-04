@@ -138,6 +138,12 @@ contract GettersFacetWrapper is GettersFacet {
         });
     }
 
+    function util_setZeroSelectors(address _facet) external {
+        Diamond.DiamondStorage storage ds = Diamond.getDiamondStorage();
+
+        ds.facetToSelectors[_facet].selectors = new bytes4[](0);
+    }
+
     function util_setPriorityTxMaxGasLimit(uint256 _priorityTxMaxGasLimit) external {
         s.priorityTxMaxGasLimit = _priorityTxMaxGasLimit;
     }
