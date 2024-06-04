@@ -8,7 +8,7 @@ import {FeeParams, PubdataPricingMode} from "contracts/state-transition/chain-de
 contract GetPubdataPricingMode is GettersFacetTest {
     function test() public {
         PubdataPricingMode expected = PubdataPricingMode.Rollup;
-        
+
         FeeParams memory params = FeeParams({
             pubdataPricingMode: expected,
             batchOverheadL1Gas: 1_000_000,
