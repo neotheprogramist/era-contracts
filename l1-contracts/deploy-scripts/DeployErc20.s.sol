@@ -37,13 +37,21 @@ contract DeployErc20Script is Script {
         saveOutput();
     }
 
+    function getTokensAddresses() public view returns (address[] memory) {
+        address[] memory addresses = new address[](config.tokens.length);
+        for (uint256 i = 0; i < config.tokens.length; i++) {
+            addresses[i] = config.tokens[i].addr;
+        }
+        return addresses;
+    }
+
     function initializeConfig() internal {
         config.deployerAddress = msg.sender;
-
+        string memory l1Output = "L1_OUTPUT";
         string memory root = vm.projectRoot();
 
         // Grab config from output of l1 deployment
-        string memory path = string.concat(root, "/script-out/output-deploy-l1.toml");
+        string memory path = string.concat(root, vm.envString(l1Output));
         string memory toml = vm.readFile(path);
 
         // Config file must be parsed key by key, otherwise values returned
@@ -53,7 +61,8 @@ contract DeployErc20Script is Script {
         config.create2FactorySalt = vm.parseTomlBytes32(toml, "$.create2_factory_salt");
 
         // Grab config from custom config file
-        path = string.concat(root, "/script-config/config-deploy-erc20.toml");
+        string memory tokensConfig = "TOKENS_CONFIG";
+        path = string.concat(root, vm.envString(tokensConfig));
         toml = vm.readFile(path);
 
         string[] memory tokens = vm.parseTomlKeys(toml, "$.tokens");

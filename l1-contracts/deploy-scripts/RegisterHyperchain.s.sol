@@ -62,8 +62,9 @@ contract RegisterHyperchainScript is Script {
 
     function initializeConfig() internal {
         // Grab config from output of l1 deployment
+        string memory l1OutputConfig = "L1_OUTPUT";
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script-config/register-hyperchain.toml");
+        string memory path = string.concat(root, vm.envString(l1OutputConfig));
         string memory toml = vm.readFile(path);
 
         config.deployerAddress = msg.sender;
@@ -71,15 +72,19 @@ contract RegisterHyperchainScript is Script {
         // Config file must be parsed key by key, otherwise values returned
         // are parsed alfabetically and not by key.
         // https://book.getfoundry.sh/cheatcodes/parse-toml
-        config.ownerAddress = toml.readAddress("$.owner_address");
+        config.ownerAddress = toml.readAddress("$.owner_addr");
 
         config.bridgehub = toml.readAddress("$.deployed_addresses.bridgehub.bridgehub_proxy_addr");
         config.stateTransitionProxy = toml.readAddress(
             "$.deployed_addresses.state_transition.state_transition_proxy_addr"
         );
         config.validatorTimelock = toml.readAddress("$.deployed_addresses.validator_timelock_addr");
-
         config.diamondCutData = toml.readBytes("$.contracts_config.diamond_cut_data");
+
+        // Grab config from hyperchain deploy config
+        string memory hyperchainConfig = "HYPERCHAIN_CONFIG";
+        path = string.concat(root, vm.envString(hyperchainConfig));
+        toml = vm.readFile(path);
 
         config.chainChainId = toml.readUint("$.chain.chain_chain_id");
         config.bridgehubCreateNewChainSalt = toml.readUint("$.chain.bridgehub_create_new_chain_salt");
