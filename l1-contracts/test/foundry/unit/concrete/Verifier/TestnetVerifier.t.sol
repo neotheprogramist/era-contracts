@@ -2,22 +2,22 @@
 pragma solidity 0.8.24;
 
 import {VerifierTestTest} from "./Verifier.t.sol";
-import {DummyTestnetVerifier} from "contracts/dev-contracts/test/DummyTestnetVerifier.sol";
+import {TestnetVerifierTest} from "contracts/dev-contracts/test/TestnetVerifierTest.sol";
 
-contract TestnetVerifierTest is VerifierTestTest {
-    DummyTestnetVerifier testnetVerifier;
+contract TestnetVerifierTestTest is VerifierTestTest {
+    TestnetVerifierTest testnetVerifier;
 
     function setUp() public override {
         super.setUp();
 
-        testnetVerifier = new DummyTestnetVerifier();
+        testnetVerifier = new TestnetVerifierTest();
     }
 
     function test_revertWhen_blockChainIdIsOne() public {
         vm.chainId(1);
 
         vm.expectRevert();
-        new DummyTestnetVerifier();
+        new TestnetVerifierTest();
     }
 
     function test_SucceedsWhen_proofIsEmpty() public {

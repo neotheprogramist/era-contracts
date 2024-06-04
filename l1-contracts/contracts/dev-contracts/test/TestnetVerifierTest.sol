@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity 0.8.24;
 
 import {TestnetVerifier} from "../../state-transition/TestnetVerifier.sol";
 
-contract DummyTestnetVerifier is TestnetVerifier {
+/// @author Matter Labs
+contract TestnetVerifierTest is TestnetVerifier {
     // add this to be excluded from coverage report
     function test() internal virtual {}
 
