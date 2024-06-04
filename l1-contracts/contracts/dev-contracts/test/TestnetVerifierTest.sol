@@ -2,7 +2,7 @@
 
 pragma solidity 0.8.24;
 
-import {TestnetVerifier} from "../../state-transition/TestnetVerifier.sol";
+import {TestnetVerifier} from "contracts/state-transition/TestnetVerifier.sol";
 
 /// @author Matter Labs
 contract TestnetVerifierTest is TestnetVerifier {
