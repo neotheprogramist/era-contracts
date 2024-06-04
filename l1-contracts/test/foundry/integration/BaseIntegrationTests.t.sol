@@ -28,12 +28,12 @@ contract BaseIntegrationTests is L1ContractDeployer, HyperchainDeployer, TokenDe
         _deployTokens();
 
         _registerNewTokens(tokens);
-
-        _addNewHyperchainToDeploy("hyperchain1", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain2", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain3", tokens[0]);
-        _addNewHyperchainToDeploy("hyperchain4", tokens[0]);
-        _deployHyperchains();
+        
+        _deployEra();
+        _deployHyperchain("hyperchain1", ETH_TOKEN_ADDRESS);
+        _deployHyperchain("hyperchain2", ETH_TOKEN_ADDRESS);
+        _deployHyperchain("hyperchain3", tokens[0]);
+        _deployHyperchain("hyperchain4", tokens[0]);
 
         alice = makeAddr("alice");
         bob = makeAddr("bob");

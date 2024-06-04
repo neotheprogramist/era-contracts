@@ -645,13 +645,13 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         _deployTokens();
         _registerNewTokens(tokens);
 
-        _addNewHyperchainToDeploy("hyperchain1", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain2", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain3", tokens[0]);
-        _addNewHyperchainToDeploy("hyperchain4", tokens[0]);
-        _addNewHyperchainToDeploy("hyperchain5", tokens[1]);
-        _addNewHyperchainToDeploy("hyperchain6", tokens[1]);
-        _deployHyperchains();
+        _deployEra();
+        _deployHyperchain("hyperchain1", ETH_TOKEN_ADDRESS);
+        _deployHyperchain("hyperchain2", ETH_TOKEN_ADDRESS);
+        _deployHyperchain("hyperchain3", tokens[0]);
+        _deployHyperchain("hyperchain4", tokens[0]);
+        _deployHyperchain("hyperchain5", tokens[1]);
+        _deployHyperchain("hyperchain6", tokens[1]);
 
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
             address contractAddress = makeAddr(string(abi.encode("contract", i)));
