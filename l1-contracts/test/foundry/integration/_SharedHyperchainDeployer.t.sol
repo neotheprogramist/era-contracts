@@ -36,7 +36,8 @@ contract HyperchainDeployer is L1ContractDeployer {
 
         deployScript = new RegisterHyperchainScript();
         hyperchainIds.push(eraHyperchainId);
-        saveHyperchainConfig(_getDefaultHyperchainDeployInfo("era", eraHyperchainId, ETH_TOKEN_ADDRESS));
+        saveHyperchainConfig(_getDefaultHyperchainDeployInfo("era", 9, ETH_TOKEN_ADDRESS));
+        vm.warp(100);
         deployScript.run();
     }
 
@@ -118,7 +119,7 @@ contract HyperchainDeployer is L1ContractDeployer {
             0
         );
 
-        vm.serializeAddress("chain", "governance_security_council_address", address(0));
+        vm.serializeAddress("chain", "governance_security_council_address", 0x08fdA3d7FeDcd1B7806bF391874B5eDbCFEB80b7);
 
         string memory single_serialized = vm.serializeUint(
             "chain",

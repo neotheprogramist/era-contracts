@@ -7,6 +7,7 @@ import {StdStorage, stdStorage} from "forge-std/Test.sol";
 import {DeployL1Script} from "deploy-scripts/DeployL1.s.sol";
 import {Bridgehub} from "contracts/bridgehub/Bridgehub.sol";
 import {L1SharedBridge} from "contracts/bridge/L1SharedBridge.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract L1ContractDeployer is Test {
     using stdStorage for StdStorage;
@@ -31,8 +32,12 @@ contract L1ContractDeployer is Test {
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
+
+        Ownable ownable = Ownable(l1Script.getSharedBridgeProxyAddress());
+        vm.startPrank(ownable.owner());
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
+        vm.stopPrank();
     }
 
     function _registerNewToken(address _tokenAddress) internal {

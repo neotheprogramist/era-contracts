@@ -474,7 +474,6 @@ contract DeployL1Script is Script {
 
     function registerStateTransitionManager() internal {
         Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
-                
         vm.broadcast(config.deployerAddress);
         bridgehub.addStateTransitionManager(addresses.stateTransition.stateTransitionProxy);
         console.log("StateTransitionManager registered");
@@ -593,6 +592,11 @@ contract DeployL1Script is Script {
         L1SharedBridge sharedBridge = L1SharedBridge(addresses.bridges.sharedBridgeProxy);
         sharedBridge.transferOwnership(addresses.governance);
 
+        vm.stopBroadcast();
+
+        vm.startBroadcast(addresses.governance);
+        bridgehub.acceptOwnership();
+        sharedBridge.acceptOwnership();
         vm.stopBroadcast();
 
         console.log("Owners updated");
