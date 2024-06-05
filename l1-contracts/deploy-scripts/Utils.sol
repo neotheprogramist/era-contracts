@@ -289,6 +289,7 @@ library Utils {
     }
 
     function executeUpgrade(
+        address _governance,
         address _governor,
         bytes32 _salt,
         address _target,
@@ -296,7 +297,7 @@ library Utils {
         uint256 _value,
         uint256 _delay
     ) internal {
-        IGovernance governance = IGovernance(_governor);
+        IGovernance governance = IGovernance(_governance);
 
         IGovernance.Call[] memory calls = new IGovernance.Call[](1);
         calls[0] = IGovernance.Call({target: _target, value: _value, data: _data});
@@ -307,7 +308,7 @@ library Utils {
             salt: _salt
         });
 
-        vm.startBroadcast();
+        vm.startBroadcast(_governor);
         governance.scheduleTransparent(operation, _delay);
         if (_delay == 0) {
             governance.execute{value: _value}(operation);

@@ -53,7 +53,7 @@ contract DeployErc20Script is Script {
         config.create2FactorySalt = vm.parseTomlBytes32(toml, "$.create2_factory_salt");
 
         // Grab config from custom config file
-        path = string.concat(root, "/script-config/config-deploy-erc20.toml");
+        path = string.concat(root, "/deploy-script-config-template/config-deploy-erc20.toml");
         toml = vm.readFile(path);
 
         string[] memory tokens = vm.parseTomlKeys(toml, "$.tokens");
