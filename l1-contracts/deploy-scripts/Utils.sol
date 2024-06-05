@@ -53,20 +53,15 @@ library Utils {
         }
 
         // Remove `getName()` selector if existing
-        bool hasGetName = false;
         for (uint256 i = 0; i < selectors.length; i++) {
             if (selectors[i] == bytes4(keccak256("getName()"))) {
                 selectors[i] = selectors[selectors.length - 1];
-                hasGetName = true;
+                // Pop the last element from the array
+                assembly {
+                    mstore(selectors, sub(mload(selectors), 1))
+                }
                 break;
             }
-        }
-        if (hasGetName) {
-            bytes4[] memory newSelectors = new bytes4[](selectors.length - 1);
-            for (uint256 i = 0; i < selectors.length - 1; i++) {
-                newSelectors[i] = selectors[i];
-            }
-            return newSelectors;
         }
 
         return selectors;
