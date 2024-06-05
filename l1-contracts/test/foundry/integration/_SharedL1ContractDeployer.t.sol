@@ -4,9 +4,10 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {StdStorage, stdStorage} from "forge-std/Test.sol";
 
-import {DeployL1Script} from "./deploy-scripts/script/DeployL1.s.sol";
+import {DeployL1Script} from "deploy-scripts/DeployL1.s.sol";
 import {Bridgehub} from "contracts/bridgehub/Bridgehub.sol";
 import {L1SharedBridge} from "contracts/bridge/L1SharedBridge.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract L1ContractDeployer is Test {
     using stdStorage for StdStorage;
@@ -19,6 +20,9 @@ contract L1ContractDeployer is Test {
     L1SharedBridge public sharedBridge;
 
     function _deployL1Contracts() internal {
+        vm.setEnv("L1_CONFIG", "/test/foundry/integration/deploy-scripts/script-config/config-deploy-l1.toml");
+        vm.setEnv("L1_OUTPUT", "/test/foundry/integration/deploy-scripts/script-out/output-deploy-l1.toml");
+
         DeployL1Script l1Script = new DeployL1Script();
         l1Script.run();
 
@@ -28,8 +32,12 @@ contract L1ContractDeployer is Test {
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
+
+        Ownable ownable = Ownable(l1Script.getSharedBridgeProxyAddress());
+        vm.startPrank(ownable.owner());
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
+        vm.stopPrank();
     }
 
     function _registerNewToken(address _tokenAddress) internal {
