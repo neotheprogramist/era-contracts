@@ -10,6 +10,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA} from "contracts/common/Config.sol";
 import {L2_DEPLOYER_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
 import {L2ContractHelper} from "contracts/common/libraries/L2ContractHelper.sol";
+import {Create2Factory} from "contracts/dev-contracts/Create2Factory.sol";
 
 library Utils {
     // Cheatcodes address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
@@ -122,40 +123,25 @@ library Utils {
     /**
      * @dev Deploy a Create2Factory contract.
      */
-    function deployCreate2Factory() internal returns (address) {
-        address child;
-        bytes memory bytecode = CREATE2_FACTORY_BYTECODE;
-        vm.startBroadcast();
-        assembly {
-            child := create(0, add(bytecode, 0x20), mload(bytecode))
-        }
-        vm.stopBroadcast();
-        require(child != address(0), "Failed to deploy Create2Factory");
-        require(child.code.length > 0, "Failed to deploy Create2Factory");
-        return child;
+    function deployCreate2Factory(bytes32 _factorySalt) internal returns (address) {
+        vm.broadcast();
+        Create2Factory factory = new Create2Factory{salt: _factorySalt}();
+
+        address factoryAddress = address(factory);
+        require(factoryAddress != address(0), "Failed to deploy Create2Factory");
+        require(factoryAddress.code.length > 0, "Failed to deploy Create2Factory");
+
+        return factoryAddress;
     }
 
     /**
      * @dev Deploys contract using CREATE2.
      */
     function deployViaCreate2(bytes memory _bytecode, bytes32 _salt, address _factory) internal returns (address) {
-        if (_bytecode.length == 0) {
-            revert("Bytecode is not set");
-        }
-        address contractAddress = vm.computeCreate2Address(_salt, keccak256(_bytecode), _factory);
-        if (contractAddress.code.length != 0) {
-            return contractAddress;
-        }
+        Create2Factory factory = Create2Factory(_factory);
 
         vm.broadcast();
-        (bool success, bytes memory data) = _factory.call(abi.encodePacked(_salt, _bytecode));
-        contractAddress = bytesToAddress(data);
-
-        if (!success || contractAddress == address(0) || contractAddress.code.length == 0) {
-            revert("Failed to deploy contract via create2");
-        }
-
-        return contractAddress;
+        return factory.deploy(_bytecode, _salt);
     }
 
     /**

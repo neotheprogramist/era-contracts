@@ -225,20 +225,19 @@ contract DeployL1Script is Script {
     function instantiateCreate2Factory() internal {
         address contractAddress;
 
-        bool isDeterministicDeployed = DETERMINISTIC_CREATE2_ADDRESS.code.length > 0;
+        // bool isDeterministicDeployed = DETERMINISTIC_CREATE2_ADDRESS.code.length > 0;
         bool isConfigured = config.contracts.create2FactoryAddr != address(0);
 
         if (isConfigured) {
             if (config.contracts.create2FactoryAddr.code.length == 0) {
-                revert("Create2Factory configured address is empty");
+                contractAddress = Utils.deployCreate2Factory(config.contracts.create2FactorySalt);
+            } else {
+                contractAddress = config.contracts.create2FactoryAddr;
             }
-            contractAddress = config.contracts.create2FactoryAddr;
+
             console.log("Using configured Create2Factory address:", contractAddress);
-        } else if (isDeterministicDeployed) {
-            contractAddress = DETERMINISTIC_CREATE2_ADDRESS;
-            console.log("Using deterministic Create2Factory address:", contractAddress);
         } else {
-            contractAddress = Utils.deployCreate2Factory();
+            contractAddress = Utils.deployCreate2Factory(config.contracts.create2FactorySalt);
             console.log("Create2Factory deployed at:", contractAddress);
         }
 
