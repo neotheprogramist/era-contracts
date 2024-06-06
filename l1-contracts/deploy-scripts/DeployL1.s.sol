@@ -579,13 +579,13 @@ contract DeployL1Script is Script {
 
         vm.stopBroadcast();
 
-        vm.broadcast(config.ownerAddress);
-        validatorTimelock.acceptOwnership();
+        // vm.broadcast(config.ownerAddress);
+        // validatorTimelock.acceptOwnership();
 
-        vm.startBroadcast(addresses.governance);
-        bridgehub.acceptOwnership();
-        sharedBridge.acceptOwnership();
-        vm.stopBroadcast();
+        // vm.startBroadcast(addresses.governance);
+        // bridgehub.acceptOwnership();
+        // sharedBridge.acceptOwnership();
+        // vm.stopBroadcast();
 
         console.log("Owners updated");
     }
