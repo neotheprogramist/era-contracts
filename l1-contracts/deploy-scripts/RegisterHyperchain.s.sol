@@ -120,7 +120,7 @@ contract RegisterHyperchainScript is Script {
 
     function registerTokenOnBridgehub() internal {
         IBridgehub bridgehub = IBridgehub(config.bridgehub);
-        Ownable ownable = Ownable(config.bridgehub);
+        Ownable ownable = Ownable(config.bridgehubGovernance);
 
         if (bridgehub.tokenIsRegistered(config.baseToken)) {
             console.log("Token already registered on Bridgehub");
@@ -128,7 +128,7 @@ contract RegisterHyperchainScript is Script {
             bytes memory data = abi.encodeCall(bridgehub.addToken, (config.baseToken));
             Utils.executeUpgrade({
                 _governance: config.bridgehubGovernance,
-                _governor: config.ownerAddress,
+                _governor: ownable.owner(),
                 _salt: bytes32(config.bridgehubCreateNewChainSalt),
                 _target: config.bridgehub,
                 _data: data,
@@ -152,7 +152,7 @@ contract RegisterHyperchainScript is Script {
 
     function registerHyperchain() internal {
         IBridgehub bridgehub = IBridgehub(config.bridgehub);
-        Ownable ownable = Ownable(config.bridgehub);
+        Ownable ownable = Ownable(config.bridgehubGovernance);
 
         vm.recordLogs();
         bytes memory data = abi.encodeCall(
@@ -169,7 +169,7 @@ contract RegisterHyperchainScript is Script {
 
         Utils.executeUpgrade({
             _governance: config.bridgehubGovernance,
-            _governor: config.ownerAddress,
+            _governor: ownable.owner(),
             _salt: bytes32(config.bridgehubCreateNewChainSalt),
             _target: config.bridgehub,
             _data: data,
