@@ -9,6 +9,8 @@ contract TokenDeployer is Test {
     DeployErc20Script private deployScript;
 
     function _deployTokens() internal {
+        vm.setEnv("TOKENS_CONFIG", "/test/foundry/integration/deploy-scripts/script-config/config-deploy-erc20.toml");
+
         deployScript = new DeployErc20Script();
         deployScript.run();
         tokens = deployScript.getTokensAddresses();

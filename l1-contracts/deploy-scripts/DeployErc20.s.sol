@@ -51,7 +51,7 @@ contract DeployErc20Script is Script {
         string memory root = vm.projectRoot();
 
         // Grab config from output of l1 deployment
-        string memory path = string.concat(root, "/script-out/output-deploy-l1.toml");
+        string memory path = string.concat(root, vm.envString("L1_OUTPUT"));
         string memory toml = vm.readFile(path);
 
         // Config file must be parsed key by key, otherwise values returned
@@ -61,7 +61,7 @@ contract DeployErc20Script is Script {
         config.create2FactorySalt = vm.parseTomlBytes32(toml, "$.create2_factory_salt");
 
         // Grab config from custom config file
-        path = string.concat(root, "/deploy-script-config-template/config-deploy-erc20.toml");
+        path = string.concat(root, vm.envString("TOKENS_CONFIG"));
         toml = vm.readFile(path);
 
         string[] memory tokens = vm.parseTomlKeys(toml, "$.tokens");

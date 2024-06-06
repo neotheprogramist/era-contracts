@@ -647,6 +647,12 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         _registerNewTokens(tokens);
 
         _deployEra();
+        _deployHyperchain(ETH_TOKEN_ADDRESS);
+        _deployHyperchain(ETH_TOKEN_ADDRESS);
+        _deployHyperchain(tokens[0]);
+        _deployHyperchain(tokens[0]);
+        _deployHyperchain(tokens[1]);
+        _deployHyperchain(tokens[1]);
 
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
             address contractAddress = makeAddr(string(abi.encode("contract", i)));
@@ -734,7 +740,7 @@ contract InvariantTesterHyperchains is Test {
     function invariant_ETHbalaceOnContractsDeposited() public {
         uint256 sum = 0;
 
-        for (uint256 i = 0; i < 1; i++) {
+        for (uint256 i = 0; i < 7; i++) {
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = l2Contract.balance;
 
@@ -757,7 +763,7 @@ contract InvariantTesterHyperchains is Test {
             return;
         }
 
-        for (uint256 i = 0; i < 1; i++) {
+        for (uint256 i = 0; i < 7; i++) {
             TestnetERC20Token token = TestnetERC20Token(currentTokenAddress);
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = token.balanceOf(l2Contract);

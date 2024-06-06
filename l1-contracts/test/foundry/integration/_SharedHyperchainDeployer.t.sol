@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {L1ContractDeployer} from "./_SharedL1ContractDeployer.t.sol";
 import {RegisterHyperchainScript} from "deploy-scripts/RegisterHyperchain.s.sol";
 import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract HyperchainDeployer is L1ContractDeployer {
     RegisterHyperchainScript deployScript;
@@ -19,45 +20,47 @@ contract HyperchainDeployer is L1ContractDeployer {
         uint128 baseTokenGasPriceMultiplierDenominator;
     }
 
-    struct HyperchainDeployInfo {
-        string name;
-        HyperchainDescription description;
-    }
-
     uint256 currentHyperChainId = 10;
     uint256 eraHyperchainId = 9;
     uint256[] public hyperchainIds;
 
     function _deployEra() internal {
+        vm.setEnv(
+            "HYPERCHAIN_CONFIG",
+            "/test/foundry/integration/deploy-scripts/script-out/output-deploy-hyperchain-era.toml"
+        );
+
         deployScript = new RegisterHyperchainScript();
+        saveHyperchainConfig(_getDefaultDescription(eraHyperchainId, ETH_TOKEN_ADDRESS, eraHyperchainId));
         vm.warp(100);
         deployScript.run();
         hyperchainIds.push(eraHyperchainId);
     }
 
-    function _deployHyperchain(string memory _name, address _baseToken) internal {
+    function _deployHyperchain(address _baseToken) internal {
         vm.setEnv(
             "HYPERCHAIN_CONFIG",
             string.concat(
                 "/test/foundry/integration/deploy-scripts/script-out/output-deploy-hyperchain-",
-                _name,
+                Strings.toString(currentHyperChainId),
                 ".toml"
             )
         );
         hyperchainIds.push(currentHyperChainId);
-        saveHyperchainConfig(_getDefaultHyperchainDeployInfo(_name, currentHyperChainId, _baseToken));
+        saveHyperchainConfig(_getDefaultDescription(currentHyperChainId, _baseToken, currentHyperChainId));
         currentHyperChainId++;
         deployScript.run();
     }
 
     function _getDefaultDescription(
         uint256 __chainId,
-        address __baseToken
+        address __baseToken,
+        uint256 __salt
     ) internal returns (HyperchainDescription memory description) {
         description = HyperchainDescription({
             hyperchainChainId: __chainId,
             baseToken: __baseToken,
-            bridgehubCreateNewChainSalt: 0,
+            bridgehubCreateNewChainSalt: __salt,
             validiumMode: false,
             validatorSenderOperatorCommitEth: address(0),
             validatorSenderOperatorBlobsEth: address(1),
@@ -66,19 +69,10 @@ contract HyperchainDeployer is L1ContractDeployer {
         });
     }
 
-    function _getDefaultHyperchainDeployInfo(
-        string memory __name,
-        uint256 __chainId,
-        address __baseToken
-    ) internal returns (HyperchainDeployInfo memory deployInfo) {
-        deployInfo = HyperchainDeployInfo({name: __name, description: _getDefaultDescription(__chainId, __baseToken)});
-    }
-
-    function saveHyperchainConfig(HyperchainDeployInfo memory info) public {
+    function saveHyperchainConfig(HyperchainDescription memory description) public {
         string memory serialized;
-        HyperchainDescription memory description = info.description;
-        string memory hyperchainName = info.name;
 
+        vm.serializeAddress("toml1", "owner_address", 0x70997970C51812dc3A010C7d01b50e0d17dc79C8);
         vm.serializeUint("chain", "chain_chain_id", description.hyperchainChainId);
         vm.serializeAddress("chain", "base_token_addr", description.baseToken);
         vm.serializeUint("chain", "bridgehub_create_new_chain_salt", description.bridgehubCreateNewChainSalt);
@@ -90,7 +84,6 @@ contract HyperchainDeployer is L1ContractDeployer {
         }
 
         vm.serializeUint("chain", "validium_mode", validiumMode);
-
         vm.serializeAddress(
             "chain",
             "validator_sender_operator_commit_eth",
@@ -106,9 +99,7 @@ contract HyperchainDeployer is L1ContractDeployer {
             "base_token_gas_price_multiplier_nominator",
             description.baseTokenGasPriceMultiplierNominator
         );
-
         vm.serializeUint("chain", "governance_min_delay", 0);
-
         vm.serializeAddress("chain", "governance_security_council_address", address(0));
 
         string memory single_serialized = vm.serializeUint(
@@ -117,16 +108,8 @@ contract HyperchainDeployer is L1ContractDeployer {
             description.baseTokenGasPriceMultiplierDenominator
         );
 
-        // serialized = vm.serializeString("hyperchain", "chain", single_serialized);
-
         string memory toml = vm.serializeString("toml1", "chain", single_serialized);
-        string memory root = vm.projectRoot();
-        string memory path = string.concat(
-            root,
-            "/test/foundry/integration/deploy-scripts/script-out/output-deploy-hyperchain-",
-            hyperchainName,
-            ".toml"
-        );
+        string memory path = string.concat(vm.projectRoot(), vm.envString("HYPERCHAIN_CONFIG"));
         vm.writeToml(toml, path);
     }
 

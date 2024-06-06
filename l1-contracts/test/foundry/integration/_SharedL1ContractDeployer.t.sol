@@ -19,6 +19,9 @@ contract L1ContractDeployer is Test {
     L1SharedBridge public sharedBridge;
 
     function _deployL1Contracts() internal {
+        vm.setEnv("L1_CONFIG", "/test/foundry/integration/deploy-scripts/script-config/config-deploy-l1.toml");
+        vm.setEnv("L1_OUTPUT", "/test/foundry/integration/deploy-scripts/script-out/output-deploy-l1.toml");
+
         DeployL1Script l1Script = new DeployL1Script();
         l1Script.run();
 

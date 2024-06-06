@@ -168,7 +168,7 @@ contract DeployL1Script is Script {
 
     function initializeConfig() internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/deploy-script-config-template/config-deploy-l1.toml");
+        string memory path = string.concat(root, vm.envString("L1_CONFIG"));
         string memory toml = vm.readFile(path);
 
         config.l1ChainId = block.chainid;
@@ -722,7 +722,7 @@ contract DeployL1Script is Script {
         vm.serializeString("root", "contracts_config", contractsConfig);
         string memory toml = vm.serializeAddress("root", "owner_addr", config.ownerAddress);
 
-        string memory path = string.concat(vm.projectRoot(), "/script-out/output-deploy-l1.toml");
+        string memory path = string.concat(vm.projectRoot(), vm.envString("L1_OUTPUT"));
         vm.writeToml(toml, path);
     }
 

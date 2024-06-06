@@ -64,7 +64,7 @@ contract RegisterHyperchainScript is Script {
     function initializeConfig() internal {
         // Grab config from output of l1 deployment
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script-out/output-deploy-l1.toml");
+        string memory path = string.concat(root, vm.envString("L1_OUTPUT"));
         string memory toml = vm.readFile(path);
 
         config.deployerAddress = msg.sender;
@@ -80,7 +80,7 @@ contract RegisterHyperchainScript is Script {
         config.bridgehubGovernance = toml.readAddress("$.deployed_addresses.governance_addr");
         config.diamondCutData = toml.readBytes("$.contracts_config.diamond_cut_data");
 
-        path = string.concat(root, "/deploy-script-config-template/register-hyperchain.toml");
+        path = string.concat(root, vm.envString("HYPERCHAIN_CONFIG"));
         toml = vm.readFile(path);
 
         config.ownerAddress = toml.readAddress("$.owner_address");
