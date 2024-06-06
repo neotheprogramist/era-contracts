@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {StdStorage, stdStorage} from "forge-std/Test.sol";
 
-import {DeployL1Script} from "./deploy-scripts/script/DeployL1.s.sol";
+import {DeployL1Script} from "deploy-scripts/DeployL1.s.sol";
 import {Bridgehub} from "contracts/bridgehub/Bridgehub.sol";
 import {L1SharedBridge} from "contracts/bridge/L1SharedBridge.sol";
 
@@ -28,8 +28,11 @@ contract L1ContractDeployer is Test {
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
+
+        vm.startPrank(sharedBridge.owner());
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
+        vm.stopPrank();
     }
 
     function _registerNewToken(address _tokenAddress) internal {

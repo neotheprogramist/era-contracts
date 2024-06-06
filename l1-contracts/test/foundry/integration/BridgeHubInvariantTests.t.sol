@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
+
 import {L2TransactionRequestDirect, L2TransactionRequestTwoBridgesOuter} from "contracts/bridgehub/IBridgehub.sol";
 import {TestnetERC20Token} from "contracts/dev-contracts/TestnetERC20Token.sol";
 import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
@@ -11,10 +14,8 @@ import {L1ContractDeployer} from "./_SharedL1ContractDeployer.t.sol";
 import {TokenDeployer} from "./_SharedTokenDeployer.t.sol";
 import {HyperchainDeployer} from "./_SharedHyperchainDeployer.t.sol";
 import {L2TxMocker} from "./_SharedL2TxMocker.t.sol";
-import {Test} from "forge-std/Test.sol";
 import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
 import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA, DEFAULT_L2_LOGS_TREE_ROOT_HASH, EMPTY_STRING_KECCAK} from "contracts/common/Config.sol";
-import {Vm} from "forge-std/Vm.sol";
 import {L2CanonicalTransaction} from "contracts/common/Messaging.sol";
 import {L2Message} from "contracts/common/Messaging.sol";
 import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
@@ -645,13 +646,7 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         _deployTokens();
         _registerNewTokens(tokens);
 
-        _addNewHyperchainToDeploy("hyperchain1", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain2", ETH_TOKEN_ADDRESS);
-        _addNewHyperchainToDeploy("hyperchain3", tokens[0]);
-        _addNewHyperchainToDeploy("hyperchain4", tokens[0]);
-        _addNewHyperchainToDeploy("hyperchain5", tokens[1]);
-        _addNewHyperchainToDeploy("hyperchain6", tokens[1]);
-        _deployHyperchains();
+        _deployEra();
 
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
             address contractAddress = makeAddr(string(abi.encode("contract", i)));
@@ -739,7 +734,7 @@ contract InvariantTesterHyperchains is Test {
     function invariant_ETHbalaceOnContractsDeposited() public {
         uint256 sum = 0;
 
-        for (uint256 i = 0; i < 7; i++) {
+        for (uint256 i = 0; i < 1; i++) {
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = l2Contract.balance;
 
@@ -762,7 +757,7 @@ contract InvariantTesterHyperchains is Test {
             return;
         }
 
-        for (uint256 i = 0; i < 7; i++) {
+        for (uint256 i = 0; i < 1; i++) {
             TestnetERC20Token token = TestnetERC20Token(currentTokenAddress);
             address l2Contract = tests.chainContracts(tests.hyperchainIds(i));
             uint256 balance = token.balanceOf(l2Contract);

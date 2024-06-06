@@ -153,9 +153,22 @@ contract DeployL1Script is Script {
         saveOutput();
     }
 
+    function getBridgehubProxyAddress() public view returns (address) {
+        return addresses.bridgehub.bridgehubProxy;
+    }
+
+    function getBridgehubOwnerAddress() public view returns (address) {
+        Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
+        return bridgehub.owner();
+    }
+
+    function getSharedBridgeProxyAddress() public view returns (address) {
+        return addresses.bridges.sharedBridgeProxy;
+    }
+
     function initializeConfig() internal {
         string memory root = vm.projectRoot();
-        string memory path = string.concat(root, "/script-config/config-deploy-l1.toml");
+        string memory path = string.concat(root, "/deploy-script-config-template/config-deploy-l1.toml");
         string memory toml = vm.readFile(path);
 
         config.l1ChainId = block.chainid;
@@ -459,14 +472,14 @@ contract DeployL1Script is Script {
 
     function registerStateTransitionManager() internal {
         Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
-        vm.broadcast();
+        vm.broadcast(config.deployerAddress);
         bridgehub.addStateTransitionManager(addresses.stateTransition.stateTransitionProxy);
         console.log("StateTransitionManager registered");
     }
 
     function setStateTransitionManagerInValidatorTimelock() internal {
         ValidatorTimelock validatorTimelock = ValidatorTimelock(addresses.validatorTimelock);
-        vm.broadcast();
+        vm.broadcast(config.deployerAddress);
         validatorTimelock.setStateTransitionManager(
             IStateTransitionManager(addresses.stateTransition.stateTransitionProxy)
         );
@@ -530,7 +543,7 @@ contract DeployL1Script is Script {
 
     function registerSharedBridge() internal {
         Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
-        vm.startBroadcast();
+        vm.startBroadcast(config.deployerAddress);
         bridgehub.addToken(ADDRESS_ONE);
         bridgehub.setSharedBridge(addresses.bridges.sharedBridgeProxy);
         vm.stopBroadcast();
@@ -560,13 +573,13 @@ contract DeployL1Script is Script {
 
     function updateSharedBridge() internal {
         L1SharedBridge sharedBridge = L1SharedBridge(addresses.bridges.sharedBridgeProxy);
-        vm.broadcast();
+        vm.broadcast(config.deployerAddress);
         sharedBridge.setL1Erc20Bridge(addresses.bridges.erc20BridgeProxy);
         console.log("SharedBridge updated with ERC20Bridge address");
     }
 
     function updateOwners() internal {
-        vm.startBroadcast();
+        vm.startBroadcast(config.deployerAddress);
 
         ValidatorTimelock validatorTimelock = ValidatorTimelock(addresses.validatorTimelock);
         validatorTimelock.transferOwnership(config.ownerAddress);
@@ -577,6 +590,14 @@ contract DeployL1Script is Script {
         L1SharedBridge sharedBridge = L1SharedBridge(addresses.bridges.sharedBridgeProxy);
         sharedBridge.transferOwnership(addresses.governance);
 
+        vm.stopBroadcast();
+
+        vm.prank(config.ownerAddress);
+        validatorTimelock.acceptOwnership();
+
+        vm.startBroadcast(addresses.governance);
+        bridgehub.acceptOwnership();
+        sharedBridge.acceptOwnership();
         vm.stopBroadcast();
 
         console.log("Owners updated");
