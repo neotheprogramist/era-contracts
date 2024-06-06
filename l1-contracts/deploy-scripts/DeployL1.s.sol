@@ -566,7 +566,7 @@ contract DeployL1Script is Script {
     }
 
     function updateOwners() internal {
-        vm.startBroadcast();
+        vm.startBroadcast(config.deployerAddress);
 
         ValidatorTimelock validatorTimelock = ValidatorTimelock(addresses.validatorTimelock);
         validatorTimelock.transferOwnership(config.ownerAddress);
@@ -578,14 +578,6 @@ contract DeployL1Script is Script {
         sharedBridge.transferOwnership(addresses.governance);
 
         vm.stopBroadcast();
-
-        // vm.broadcast(config.ownerAddress);
-        // validatorTimelock.acceptOwnership();
-
-        // vm.startBroadcast(addresses.governance);
-        // bridgehub.acceptOwnership();
-        // sharedBridge.acceptOwnership();
-        // vm.stopBroadcast();
 
         console.log("Owners updated");
     }
