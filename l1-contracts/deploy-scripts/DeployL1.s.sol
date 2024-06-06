@@ -459,14 +459,14 @@ contract DeployL1Script is Script {
 
     function registerStateTransitionManager() internal {
         Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
-        vm.broadcast(config.deployerAddress);
+        vm.broadcast();
         bridgehub.addStateTransitionManager(addresses.stateTransition.stateTransitionProxy);
         console.log("StateTransitionManager registered");
     }
 
     function setStateTransitionManagerInValidatorTimelock() internal {
         ValidatorTimelock validatorTimelock = ValidatorTimelock(addresses.validatorTimelock);
-        vm.broadcast(config.deployerAddress);
+        vm.broadcast();
         validatorTimelock.setStateTransitionManager(
             IStateTransitionManager(addresses.stateTransition.stateTransitionProxy)
         );
@@ -530,7 +530,7 @@ contract DeployL1Script is Script {
 
     function registerSharedBridge() internal {
         Bridgehub bridgehub = Bridgehub(addresses.bridgehub.bridgehubProxy);
-        vm.startBroadcast(config.deployerAddress);
+        vm.startBroadcast();
         bridgehub.addToken(ADDRESS_ONE);
         bridgehub.setSharedBridge(addresses.bridges.sharedBridgeProxy);
         vm.stopBroadcast();
@@ -560,13 +560,13 @@ contract DeployL1Script is Script {
 
     function updateSharedBridge() internal {
         L1SharedBridge sharedBridge = L1SharedBridge(addresses.bridges.sharedBridgeProxy);
-        vm.broadcast(config.deployerAddress);
+        vm.broadcast();
         sharedBridge.setL1Erc20Bridge(addresses.bridges.erc20BridgeProxy);
         console.log("SharedBridge updated with ERC20Bridge address");
     }
 
     function updateOwners() internal {
-        vm.startBroadcast(config.deployerAddress);
+        vm.startBroadcast();
 
         ValidatorTimelock validatorTimelock = ValidatorTimelock(addresses.validatorTimelock);
         validatorTimelock.transferOwnership(config.ownerAddress);
@@ -579,7 +579,7 @@ contract DeployL1Script is Script {
 
         vm.stopBroadcast();
 
-        vm.prank(config.ownerAddress);
+        vm.broadcast(config.ownerAddress);
         validatorTimelock.acceptOwnership();
 
         vm.startBroadcast(addresses.governance);
