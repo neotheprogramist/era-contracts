@@ -234,8 +234,8 @@ contract RegisterHyperchainScript is Script {
     }
 
     function saveOutput() internal {
-        vm.serializeAddress("hyperchain", "diamond_proxy_addr", config.newDiamondProxy);
-        string memory toml = vm.serializeAddress("hyperchain", "governance_addr", config.governance);
+        vm.serializeAddress("root", "diamond_proxy_addr", config.newDiamondProxy);
+        string memory toml = vm.serializeAddress("root", "governance_addr", config.governance);
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/script-out/output-register-hyperchain.toml");
         vm.writeToml(toml, path);

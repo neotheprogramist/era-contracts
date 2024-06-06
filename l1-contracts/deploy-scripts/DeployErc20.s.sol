@@ -137,9 +137,10 @@ contract DeployErc20Script is Script {
             tokens = vm.serializeString("tokens", token.symbol, tokenInfo);
         }
 
+        string memory toml = vm.serializeString("root", "tokens", tokens);
         string memory root = vm.projectRoot();
         string memory path = string.concat(root, "/script-out/output-deploy-erc20.toml");
-        vm.writeToml(tokens, path);
+        vm.writeToml(toml, path);
     }
 
     function deployViaCreate2(bytes memory _bytecode) internal returns (address) {
