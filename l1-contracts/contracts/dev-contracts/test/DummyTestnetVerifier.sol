@@ -2,6 +2,7 @@
 
 pragma solidity 0.8.24;
 
+import {Verifier} from "../../state-transition/Verifier.sol";
 import {TestnetVerifier} from "../../state-transition/TestnetVerifier.sol";
 
 contract DummyTestnetVerifier is TestnetVerifier {
