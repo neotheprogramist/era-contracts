@@ -1,0 +1,22 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = [
+    "lib",
+    "node_modules",
+]
+remappings = [
+    "@ethereum-waffle/=node_modules/@ethereum-waffle/",
+    "@openzeppelin/=node_modules/l1-contracts/node_modules/@openzeppelin/",
+    "ds-test/=node_modules/l1-contracts/lib/forge-std/lib/ds-test/",
+    "eth-gas-reporter/=node_modules/eth-gas-reporter/",
+    "forge-std/=node_modules/l1-contracts/lib/forge-std/",
+    "hardhat/=node_modules/hardhat/",
+    "l1-contracts/=node_modules/l1-contracts/",
+    "l2-contracts/=node_modules/l2-contracts/",
+    "murky/=node_modules/l1-contracts/lib/murky/",
+    "openzeppelin-contracts/=node_modules/l1-contracts/lib/murky/lib/openzeppelin-contracts/",
+    "system-contracts/=node_modules/system-contracts/",
+]
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
