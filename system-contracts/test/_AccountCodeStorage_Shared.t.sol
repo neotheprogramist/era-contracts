@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.24;
+pragma solidity ^0.8.20;
 
-import {Test} from "l1-contracts/lib/forge-std/src/Test.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
 
-import {IAccountCodeStorage} from "system-contracts/contracts/interfaces/IAccountCodeStorage.sol";
-import {Wallet} from "zksync-ethers";
-import {AccountCodeStorage} from "system-contracts/typechain/AccountCodeStorage.d.ts";
-import {ethers} from "hardhat";
+import {IAccountCodeStorage} from "../contracts/interfaces/IAccountCodeStorage.sol";
+// import {Wallet} from "zksync-ethers";
+import {AccountCodeStorage} from "../typechain/AccountCodeStorage.d.ts";
+// import {ethers} from "hardhat";
 
 contract AccountCodeFacetTest is Test {
     IAccountCodeStorage internal accountCode;
