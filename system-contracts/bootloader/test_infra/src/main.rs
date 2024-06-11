@@ -5,8 +5,8 @@ use multivm::interface::{
 };
 use multivm::vm_latest::{HistoryDisabled, ToTracerPointer, Vm};
 use once_cell::sync::OnceCell;
-use zksync_types::fee_model::BatchFeeInput;
 use std::process;
+use zksync_types::fee_model::BatchFeeInput;
 
 use multivm::interface::{ExecutionResult, Halt};
 use std::{env, sync::Arc};
@@ -163,14 +163,18 @@ fn execute_internal_bootloader_test() {
                     ExecutionResult::Revert { output } => {
                         println!("OUTPUT: {:?}", output);
                         Err(format!(
-                        "Should have failed with {}, but run reverted with {}.",
-                        requested_assert,
-                        output.to_user_friendly_string()
-                    ))},
+                            "Should have failed with {}, but run reverted with {}.",
+                            requested_assert,
+                            output.to_user_friendly_string()
+                        ))
+                    }
                     ExecutionResult::Halt { reason } => {
                         if let Halt::UnexpectedVMBehavior(reason) = reason {
-                            println!("{:?}", reason);
-                            let reason = reason.strip_prefix("Assertion error: ").unwrap();
+                            let reason = reason
+                                .strip_prefix("Assertion error: ")
+                                .unwrap_or_else(|| reason);
+
+   
                             if reason == requested_assert {
                                 Ok(())
                             } else {
