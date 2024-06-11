@@ -25,13 +25,26 @@ contract L1ContractDeployer is Test {
         DeployL1Script l1Script = new DeployL1Script();
         l1Script.run();
 
-        bridgehubOwnerAddress = l1Script.getBridgehubOwnerAddress();
         bridgehubProxyAddress = l1Script.getBridgehubProxyAddress();
         bridgeHub = Bridgehub(bridgehubProxyAddress);
 
         sharedBridgeProxyAddress = l1Script.getSharedBridgeProxyAddress();
         sharedBridge = L1SharedBridge(sharedBridgeProxyAddress);
 
+        _acceptOwnership();
+        _setEraBatch();
+
+        bridgehubOwnerAddress = bridgeHub.owner();
+    }
+
+    function _acceptOwnership() private {
+        vm.startPrank(bridgeHub.pendingOwner());
+        bridgeHub.acceptOwnership();
+        sharedBridge.acceptOwnership();
+        vm.stopPrank();
+    }
+
+    function _setEraBatch() private {
         vm.startPrank(sharedBridge.owner());
         sharedBridge.setEraPostLegacyBridgeUpgradeFirstBatch(1);
         sharedBridge.setEraPostDiamondUpgradeFirstBatch(1);
