@@ -72,38 +72,6 @@ contract ExecutorTest is Test {
         return selectors;
     }
 
-    function getGettersSelectors() public view returns (bytes4[] memory) {
-        bytes4[] memory selectors = new bytes4[](28);
-        selectors[0] = getters.getVerifier.selector;
-        selectors[1] = getters.getAdmin.selector;
-        selectors[2] = getters.getPendingAdmin.selector;
-        selectors[3] = getters.getTotalBlocksCommitted.selector;
-        selectors[4] = getters.getTotalBlocksVerified.selector;
-        selectors[5] = getters.getTotalBlocksExecuted.selector;
-        selectors[6] = getters.getTotalPriorityTxs.selector;
-        selectors[7] = getters.getFirstUnprocessedPriorityTx.selector;
-        selectors[8] = getters.getPriorityQueueSize.selector;
-        selectors[9] = getters.priorityQueueFrontOperation.selector;
-        selectors[10] = getters.isValidator.selector;
-        selectors[11] = getters.l2LogsRootHash.selector;
-        selectors[12] = getters.storedBatchHash.selector;
-        selectors[13] = getters.getL2BootloaderBytecodeHash.selector;
-        selectors[14] = getters.getL2DefaultAccountBytecodeHash.selector;
-        selectors[15] = getters.getVerifierParams.selector;
-        selectors[16] = getters.isDiamondStorageFrozen.selector;
-        selectors[17] = getters.getPriorityTxMaxGasLimit.selector;
-        selectors[18] = getters.isEthWithdrawalFinalized.selector;
-        selectors[19] = getters.facets.selector;
-        selectors[20] = getters.facetFunctionSelectors.selector;
-        selectors[21] = getters.facetAddresses.selector;
-        selectors[22] = getters.facetAddress.selector;
-        selectors[23] = getters.isFunctionFreezable.selector;
-        selectors[24] = getters.isFacetFreezable.selector;
-        selectors[25] = getters.getTotalBatchesCommitted.selector;
-        selectors[26] = getters.getTotalBatchesVerified.selector;
-        selectors[27] = getters.getTotalBatchesExecuted.selector;
-        return selectors;
-    }
 
     function getMailboxSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](6);
@@ -208,7 +176,7 @@ contract ExecutorTest is Test {
             facet: address(getters),
             action: Diamond.Action.Add,
             isFreezable: false,
-            selectors: getGettersSelectors()
+            selectors: Utils.getGettersSelectors()
         });
         facetCuts[3] = Diamond.FacetCut({
             facet: address(mailbox),

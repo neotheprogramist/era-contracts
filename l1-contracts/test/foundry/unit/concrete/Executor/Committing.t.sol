@@ -233,6 +233,7 @@ contract CommittingTest is ExecutorTest {
         wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
 
         vm.prank(validator);
+        // it goes through to the next revert
         vm.expectRevert(bytes.concat("tb"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
@@ -485,6 +486,7 @@ contract CommittingTest is ExecutorTest {
         for (uint256 i = 0; i < values.length; i++) {
             bytes[] memory wrongL2Logs = Utils.createSystemLogsWithUpgradeTransaction(bytes32(""));
             bytes[] memory tooManyLogs = new bytes[](15);
+
             for (uint256 i = 0; i < wrongL2Logs.length; i++) {
                 tooManyLogs[i] = wrongL2Logs[i];
             }
@@ -513,13 +515,14 @@ contract CommittingTest is ExecutorTest {
         wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(logsWithWrongHash);
         IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
         wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+
         vm.prank(validator);
         vm.expectRevert(bytes.concat("ut"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
-    function test_RevertWhen_SystemLogsBadLength() public {
-        utils.util_setl2SystemContractsUpgradeTxHash(bytes32("not default"));
+    function test_RevertWhen_systemLogsBadLength() public {
+        utils.util_setL2SystemContractsUpgradeTxHash(bytes32("not default"));
         bytes[] memory logs = Utils.createSystemLogsWithUpgradeTransaction(bytes32("not default"));
         delete logs[0];
 
@@ -534,19 +537,97 @@ contract CommittingTest is ExecutorTest {
     }
 
     function test_RevertWhen_SystemLogIsMissing() public {
-        for (uint256 i = 0; i < 7; i++) {
-            bytes[] memory l2Logs = Utils.createSystemLogs();
-            delete l2Logs[i];
+        bytes[] memory logs = Utils.createSystemLogs();
+        delete logs[0];
 
-            IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
-            wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(l2Logs);
-            IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
-            wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
+        IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
+        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(logs);
+        IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
 
-            vm.prank(validator);
-            vm.expectRevert(bytes.concat("b7"));
-            executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
-        }
+        vm.prank(validator);
+        vm.expectRevert(bytes.concat("b7"));
+        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
+    }
+
+    function test_successfullyCommitBatchWithSystemUpgrade() public {
+        // upgrade batch number must be zero to proceed
+        utils.util_setL2SystemContractsUpgradeBatchNumber(0);
+        // upgrade tx hash must be non zero to proceed
+        utils.util_setL2SystemContractsUpgradeTxHash(bytes32("not default"));
+
+        // first new batch logs must contain upgrade transaction
+        // ugrade batch number will be batch number of this batch
+        bytes[] memory upgradeLogs = Utils.createSystemLogsWithUpgradeTransaction(bytes32("not default"));
+        uint64 upgradeBatchNumber = 1;
+
+        upgradeLogs[uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY)] = Utils.constructL2Log(
+            true,
+            L2_SYSTEM_CONTEXT_ADDRESS,
+            uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY),
+            Utils.packBatchTimestampAndBlockTimestamp(currentTimestamp, currentTimestamp)
+        );
+        upgradeLogs[uint256(SystemLogKey.BLOB_ONE_HASH_KEY)] = Utils.constructL2Log(
+            true,
+            L2_PUBDATA_CHUNK_PUBLISHER_ADDR,
+            uint256(SystemLogKey.BLOB_ONE_HASH_KEY),
+            0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563
+        );
+
+        IExecutor.CommitBatchInfo memory upgradeBatch = newCommitBatchInfo;
+        upgradeBatch.batchNumber = upgradeBatchNumber;
+        upgradeBatch.systemLogs = Utils.encodePacked(upgradeLogs);
+        upgradeBatch.pubdataCommitments = abi.encodePacked(
+            "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+            bytes32(uint256(0xbeef))
+        );
+
+        bytes32[] memory blobHashes = new bytes32[](MAX_NUMBER_OF_BLOBS);
+        blobHashes[0] = 0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563;
+
+        bytes32[] memory blobCommitments = new bytes32[](MAX_NUMBER_OF_BLOBS);
+        blobCommitments[0] = bytes32(uint256(0xbeef));
+
+        bytes32 expectedBatchCommitment = Utils.createBatchCommitment(
+            upgradeBatch,
+            bytes32(""),
+            blobCommitments,
+            blobHashes
+        );
+
+        IExecutor.CommitBatchInfo[] memory batchInfoArray = new IExecutor.CommitBatchInfo[](1);
+        batchInfoArray[0] = upgradeBatch;
+
+        vm.prank(validator);
+        // solhint-disable-next-line func-named-parameters
+        vm.expectEmit(true, true, true, true, address(executor));
+        emit BlockCommit(1, upgradeBatch.newStateRoot, expectedBatchCommitment);
+        executor.commitBatches(genesisStoredBatchInfo, batchInfoArray);
+
+        assertEq(getters.getTotalBatchesCommitted(), 1);
+        assertEq(getters.getL2SystemContractsUpgradeBatchNumber(), upgradeBatchNumber);
+        assertEq(getters.getL2SystemContractsUpgradeTxHash(), bytes32("not default"));
+
+        IExecutor.StoredBatchInfo memory lastBatch = IExecutor.StoredBatchInfo({
+            batchNumber: 1,
+            batchHash: Utils.randomBytes32("newStateRoot"),
+            indexRepeatedStorageChanges: 0,
+            numberOfLayer1Txs: 0,
+            priorityOperationsHash: keccak256(""),
+            l2LogsTreeRoot: DEFAULT_L2_LOGS_TREE_ROOT_HASH,
+            timestamp: currentTimestamp,
+            commitment: expectedBatchCommitment
+        });
+
+        assertEq(utils.util_getStoredBatchHashes(1), keccak256(abi.encode(lastBatch)));
+
+        batchInfoArray[0].batchNumber += 1;
+
+        // this proves that upgrade batch number is not zero in second call
+        // and it doesn't go through branch with upgrade
+        vm.expectRevert(bytes.concat("ut"));
+        vm.prank(validator);
+        executor.commitBatches(lastBatch, batchInfoArray);
     }
 
     function test_SuccessfullyCommitBatch() public {
@@ -588,21 +669,12 @@ contract CommittingTest is ExecutorTest {
         correctCommitBatchInfoArray[0] = correctNewCommitBatchInfo;
 
         vm.prank(validator);
-
-        vm.recordLogs();
+        // solhint-disable-next-line func-named-parameters
+        vm.expectEmit(true, true, true, true, address(executor));
+        emit BlockCommit(1, correctNewCommitBatchInfo.newStateRoot, expectedBatchCommitment);
 
         executor.commitBatches(genesisStoredBatchInfo, correctCommitBatchInfoArray);
-
-        Vm.Log[] memory entries = vm.getRecordedLogs();
-
-        assertEq(entries.length, 1);
-        assertEq(entries[0].topics[0], keccak256("BlockCommit(uint256,bytes32,bytes32)"));
-        assertEq(entries[0].topics[1], bytes32(uint256(1))); // batchNumber
-        assertEq(entries[0].topics[2], correctNewCommitBatchInfo.newStateRoot); // batchHash
-        assertEq(entries[0].topics[3], expectedBatchCommitment); // commitment
-
-        uint256 totalBatchesCommitted = getters.getTotalBatchesCommitted();
-        assertEq(totalBatchesCommitted, 1);
+        assertEq(getters.getTotalBatchesCommitted(), 1);
     }
 
     function test_SuccessfullyCommitBatchWithOneBlob() public {
@@ -709,13 +781,12 @@ contract CommittingTest is ExecutorTest {
         correctCommitBatchInfoArray[0].pubdataCommitments = pubdataCommitment;
 
         vm.prank(validator);
+        // solhint-disable-next-line func-named-parameters
         vm.expectEmit(true, false, false, false, address(executor));
         emit BlockCommit(1, bytes32(0), bytes32(0));
         executor.commitBatches(genesisStoredBatchInfo, correctCommitBatchInfoArray);
 
-        uint256 totalBatchesCommitted = getters.getTotalBatchesCommitted();
-        assertEq(totalBatchesCommitted, 1);
-
+        assertEq(getters.getTotalBatchesCommitted(), 1);
         vm.clearMockedCalls();
     }
 
