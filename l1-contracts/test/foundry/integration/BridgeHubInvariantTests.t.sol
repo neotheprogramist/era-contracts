@@ -43,7 +43,9 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         bytes[] factoryDeps;
     }
 
-    address[] users;
+    address[] public users;
+    address[] public l2ContractAddresses;
+    address[] public addressesToExclude;
     address public currentUser;
     uint256 public currentChainId;
     address public currentChainAddress;
@@ -639,6 +641,33 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
         }
     }
 
+    function getAddressesToExclude() public returns (address[] memory) {
+        addressesToExclude.push(bridgehubProxyAddress);
+        addressesToExclude.push(sharedBridgeProxyAddress);
+
+        for (uint256 i = 0; i < users.length; i++) {
+            addressesToExclude.push(users[i]);
+        }
+
+        for (uint256 i = 0; i < l2ContractAddresses.length; i++) {
+            addressesToExclude.push(l2ContractAddresses[i]);
+        }
+
+        for (uint256 i = 0; i < hyperchainIds.length; i++) {
+            addressesToExclude.push(getHyperchainAddress(hyperchainIds[i]));
+        }
+
+        // for (uint256 i = 0; i < tokens.length; i++) {
+        //     addressesToExclude.push(tokens[i]);
+        // }
+
+        // excludeSender(0x0000000000000000000000000000000000000B82);
+        // excludeSender(0x00000000000000000000000000000000000038a4);
+        // excludeSender(0x8ba5b7bF6b4499dDeBe13966e46f889D9C8d06C7);
+
+        return addressesToExclude;
+    }
+
     function prepare() public {
         _generateUserAddresses();
 
@@ -656,8 +685,9 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
 
         for (uint256 i = 0; i < hyperchainIds.length; i++) {
             address contractAddress = makeAddr(string(abi.encode("contract", i)));
-            _addL2ChainContract(hyperchainIds[i], contractAddress);
+            l2ContractAddresses.push(contractAddress);
 
+            _addL2ChainContract(hyperchainIds[i], contractAddress);
             _registerL2SharedBridge(hyperchainIds[i], contractAddress);
         }
     }
@@ -709,6 +739,11 @@ contract InvariantTesterHyperchains is Test {
 
         targetContract(address(tests));
         targetSelector(selector);
+
+        address[] memory addressesToExclude = tests.getAddressesToExclude();
+        for (uint256 i = 0; i < addressesToExclude.length; i++) {
+            excludeSender(addressesToExclude[i]);
+        }
     }
 
     // Check whether the sum of ETH deposits from tests, updated on each deposit and withdrawal,
