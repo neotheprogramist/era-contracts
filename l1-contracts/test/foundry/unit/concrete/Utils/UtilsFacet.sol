@@ -162,12 +162,16 @@ contract UtilsFacet is ZkSyncHyperchainBase {
         return s.isFrozen;
     }
 
-    function util_setl2SystemContractsUpgradeTxHash(bytes32 _l2SystemContractsUpgradeTxHash) external {
+    function util_setL2SystemContractsUpgradeTxHash(bytes32 _l2SystemContractsUpgradeTxHash) external {
         s.l2SystemContractsUpgradeTxHash = _l2SystemContractsUpgradeTxHash;
     }
 
     function util_setTotalBatchesCommitted(uint256 _totalBatchesCommitted) external {
         s.totalBatchesCommitted = _totalBatchesCommitted;
+    }
+
+    function util_setL2SystemContractsUpgradeBatchNumber(uint256 _l2SystemContractsUpgradeBatchNumber) external {
+        s.l2SystemContractsUpgradeBatchNumber = _l2SystemContractsUpgradeBatchNumber;
     }
 
     // add this to be excluded from coverage report
