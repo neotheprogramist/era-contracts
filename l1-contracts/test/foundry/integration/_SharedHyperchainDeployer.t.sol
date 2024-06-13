@@ -120,4 +120,7 @@ contract HyperchainDeployer is L1ContractDeployer {
     function getHyperchainBaseToken(uint256 _chainId) public view returns (address) {
         return bridgeHub.baseToken(_chainId);
     }
+
+    // add this to be excluded from coverage report
+    function testHyperchainDeployer() public {}
 }

@@ -92,4 +92,7 @@ contract L1ContractDeployer is Test {
             .with_key(_l2ToL1MessageNumber)
             .checked_write(_isFinalized);
     }
+
+    // add this to be excluded from coverage report
+    function test() internal virtual {}
 }

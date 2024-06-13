@@ -15,4 +15,7 @@ contract TokenDeployer is Test {
         deployScript.run();
         tokens = deployScript.getTokensAddresses();
     }
+
+    // add this to be excluded from coverage report
+    function testTokenDeployer() public {}
 }

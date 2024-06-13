@@ -691,6 +691,9 @@ contract BridgeHubInvariantTests is L1ContractDeployer, HyperchainDeployer, Toke
             _registerL2SharedBridge(hyperchainIds[i], contractAddress);
         }
     }
+
+    // add this to be excluded from coverage report
+    function test() internal override {}
 }
 
 contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
@@ -722,6 +725,9 @@ contract BoundedBridgeHubInvariantTests is BridgeHubInvariantTests {
         emit log_string("WITHDRAW ERC20");
         super.withdrawSuccess(userIndexSeed, chainIndexSeed, amountToWithdraw);
     }
+
+    // add this to be excluded from coverage report
+    function testBoundedBridgeHubInvariant() internal {}
 }
 
 contract InvariantTesterHyperchains is Test {
@@ -809,4 +815,7 @@ contract InvariantTesterHyperchains is Test {
         assertEq(tests.contractDepositsSum(currentTokenAddress), sum);
         assertEq(tests.l2ValuesSum(currentTokenAddress), sum);
     }
+
+    // add this to be excluded from coverage report
+    function test() internal {}
 }

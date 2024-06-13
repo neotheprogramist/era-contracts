@@ -114,4 +114,7 @@ contract L2TxMocker is Test {
         request.l2GasPerPubdataByteLimit = mockL2GasPerPubdataByteLimit;
         request.refundRecipient = mockRefundRecipient;
     }
+
+    // add this to be excluded from coverage report
+    function testL2TxMocker() public {}
 }

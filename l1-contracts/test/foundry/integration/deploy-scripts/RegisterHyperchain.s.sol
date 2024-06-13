@@ -235,4 +235,7 @@ contract RegisterHyperchainScript is Script {
         string memory path = string.concat(root, "/script-out/output-register-hyperchain.toml");
         vm.writeToml(toml, path);
     }
+
+    // add this to be excluded from coverage report
+    function test() internal {}
 }
