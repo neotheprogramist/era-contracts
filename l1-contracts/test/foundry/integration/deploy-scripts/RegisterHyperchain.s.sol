@@ -33,7 +33,6 @@ contract RegisterHyperchainScript is Script {
         uint128 baseTokenGasPriceMultiplierNominator;
         uint128 baseTokenGasPriceMultiplierDenominator;
         address bridgehub;
-        address bridgehubGovernance;
         address stateTransitionProxy;
         address validatorTimelock;
         bytes diamondCutData;
@@ -77,7 +76,6 @@ contract RegisterHyperchainScript is Script {
             "$.deployed_addresses.state_transition.state_transition_proxy_addr"
         );
         config.validatorTimelock = toml.readAddress("$.deployed_addresses.validator_timelock_addr");
-        config.bridgehubGovernance = toml.readAddress("$.deployed_addresses.governance_addr");
         config.diamondCutData = toml.readBytes("$.contracts_config.diamond_cut_data");
 
         path = string.concat(root, vm.envString("HYPERCHAIN_CONFIG"));

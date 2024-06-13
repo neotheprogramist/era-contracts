@@ -11,6 +11,12 @@ import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA} from "contracts/common/Config.sol";
 import {L2_DEPLOYER_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
 import {L2ContractHelper} from "contracts/common/libraries/L2ContractHelper.sol";
 
+import {UtilsFacet} from "../test/foundry/unit/concrete/Utils/UtilsFacet.sol";
+import {AdminFacet} from "contracts/state-transition/chain-deps/facets/Admin.sol";
+import {ExecutorFacet} from "contracts/state-transition/chain-deps/facets/Executor.sol";
+import {GettersFacet} from "contracts/state-transition/chain-deps/facets/Getters.sol";
+import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
+
 library Utils {
     // Cheatcodes address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
@@ -314,5 +320,119 @@ library Utils {
             governance.execute{value: _value}(operation);
         }
         vm.stopBroadcast();
+    }
+
+    function getAdminSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](11);
+        selectors[0] = AdminFacet.setPendingAdmin.selector;
+        selectors[1] = AdminFacet.acceptAdmin.selector;
+        selectors[2] = AdminFacet.setValidator.selector;
+        selectors[3] = AdminFacet.setPorterAvailability.selector;
+        selectors[4] = AdminFacet.setPriorityTxMaxGasLimit.selector;
+        selectors[5] = AdminFacet.changeFeeParams.selector;
+        selectors[6] = AdminFacet.setTokenMultiplier.selector;
+        selectors[7] = AdminFacet.upgradeChainFromVersion.selector;
+        selectors[8] = AdminFacet.executeUpgrade.selector;
+        selectors[9] = AdminFacet.freezeDiamond.selector;
+        selectors[10] = AdminFacet.unfreezeDiamond.selector;
+        return selectors;
+    }
+
+    function getExecutorSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = ExecutorFacet.commitBatches.selector;
+        selectors[1] = ExecutorFacet.proveBatches.selector;
+        selectors[2] = ExecutorFacet.executeBatches.selector;
+        selectors[3] = ExecutorFacet.revertBatches.selector;
+        return selectors;
+    }
+
+    function getGettersSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](29);
+        selectors[0] = GettersFacet.getVerifier.selector;
+        selectors[1] = GettersFacet.getAdmin.selector;
+        selectors[2] = GettersFacet.getPendingAdmin.selector;
+        selectors[3] = GettersFacet.getTotalBlocksCommitted.selector;
+        selectors[4] = GettersFacet.getTotalBlocksVerified.selector;
+        selectors[5] = GettersFacet.getTotalBlocksExecuted.selector;
+        selectors[6] = GettersFacet.getTotalPriorityTxs.selector;
+        selectors[7] = GettersFacet.getFirstUnprocessedPriorityTx.selector;
+        selectors[8] = GettersFacet.getPriorityQueueSize.selector;
+        selectors[9] = GettersFacet.priorityQueueFrontOperation.selector;
+        selectors[10] = GettersFacet.isValidator.selector;
+        selectors[11] = GettersFacet.l2LogsRootHash.selector;
+        selectors[12] = GettersFacet.storedBatchHash.selector;
+        selectors[13] = GettersFacet.getL2BootloaderBytecodeHash.selector;
+        selectors[14] = GettersFacet.getL2DefaultAccountBytecodeHash.selector;
+        selectors[15] = GettersFacet.getVerifierParams.selector;
+        selectors[16] = GettersFacet.isDiamondStorageFrozen.selector;
+        selectors[17] = GettersFacet.getPriorityTxMaxGasLimit.selector;
+        selectors[18] = GettersFacet.isEthWithdrawalFinalized.selector;
+        selectors[19] = GettersFacet.facets.selector;
+        selectors[20] = GettersFacet.facetFunctionSelectors.selector;
+        selectors[21] = GettersFacet.facetAddresses.selector;
+        selectors[22] = GettersFacet.facetAddress.selector;
+        selectors[23] = GettersFacet.isFunctionFreezable.selector;
+        selectors[24] = GettersFacet.isFacetFreezable.selector;
+        selectors[25] = GettersFacet.getTotalBatchesCommitted.selector;
+        selectors[26] = GettersFacet.getTotalBatchesVerified.selector;
+        selectors[27] = GettersFacet.getTotalBatchesExecuted.selector;
+        selectors[28] = GettersFacet.getL2SystemContractsUpgradeTxHash.selector;
+        return selectors;
+    }
+
+    function getMailboxSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](7);
+        selectors[0] = MailboxFacet.proveL2MessageInclusion.selector;
+        selectors[1] = MailboxFacet.proveL2LogInclusion.selector;
+        selectors[2] = MailboxFacet.proveL1ToL2TransactionStatus.selector;
+        selectors[3] = MailboxFacet.finalizeEthWithdrawal.selector;
+        selectors[4] = MailboxFacet.requestL2Transaction.selector;
+        selectors[5] = MailboxFacet.bridgehubRequestL2Transaction.selector;
+        selectors[6] = MailboxFacet.l2TransactionBaseCost.selector;
+        return selectors;
+    }
+
+    function getUtilsFacetSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](38);
+        selectors[0] = UtilsFacet.util_setChainId.selector;
+        selectors[1] = UtilsFacet.util_getChainId.selector;
+        selectors[2] = UtilsFacet.util_setBridgehub.selector;
+        selectors[3] = UtilsFacet.util_getBridgehub.selector;
+        selectors[4] = UtilsFacet.util_setBaseToken.selector;
+        selectors[5] = UtilsFacet.util_getBaseToken.selector;
+        selectors[6] = UtilsFacet.util_setBaseTokenBridge.selector;
+        selectors[7] = UtilsFacet.util_getBaseTokenBridge.selector;
+        selectors[8] = UtilsFacet.util_setVerifier.selector;
+        selectors[9] = UtilsFacet.util_getVerifier.selector;
+        selectors[10] = UtilsFacet.util_setStoredBatchHashes.selector;
+        selectors[11] = UtilsFacet.util_getStoredBatchHashes.selector;
+        selectors[12] = UtilsFacet.util_setVerifierParams.selector;
+        selectors[13] = UtilsFacet.util_getVerifierParams.selector;
+        selectors[14] = UtilsFacet.util_setL2BootloaderBytecodeHash.selector;
+        selectors[15] = UtilsFacet.util_getL2BootloaderBytecodeHash.selector;
+        selectors[16] = UtilsFacet.util_setL2DefaultAccountBytecodeHash.selector;
+        selectors[17] = UtilsFacet.util_getL2DefaultAccountBytecodeHash.selector;
+        selectors[18] = UtilsFacet.util_setPendingAdmin.selector;
+        selectors[19] = UtilsFacet.util_getPendingAdmin.selector;
+        selectors[20] = UtilsFacet.util_setAdmin.selector;
+        selectors[21] = UtilsFacet.util_getAdmin.selector;
+        selectors[22] = UtilsFacet.util_setValidator.selector;
+        selectors[23] = UtilsFacet.util_getValidator.selector;
+        selectors[24] = UtilsFacet.util_setZkPorterAvailability.selector;
+        selectors[25] = UtilsFacet.util_getZkPorterAvailability.selector;
+        selectors[26] = UtilsFacet.util_setStateTransitionManager.selector;
+        selectors[27] = UtilsFacet.util_getStateTransitionManager.selector;
+        selectors[28] = UtilsFacet.util_setPriorityTxMaxGasLimit.selector;
+        selectors[29] = UtilsFacet.util_getPriorityTxMaxGasLimit.selector;
+        selectors[30] = UtilsFacet.util_setFeeParams.selector;
+        selectors[31] = UtilsFacet.util_getFeeParams.selector;
+        selectors[32] = UtilsFacet.util_setProtocolVersion.selector;
+        selectors[33] = UtilsFacet.util_getProtocolVersion.selector;
+        selectors[34] = UtilsFacet.util_setIsFrozen.selector;
+        selectors[35] = UtilsFacet.util_getIsFrozen.selector;
+        selectors[36] = UtilsFacet.util_setTransactionFilterer.selector;
+        selectors[37] = UtilsFacet.util_setBaseTokenGasPriceMultiplierDenominator.selector;
+        return selectors;
     }
 }
