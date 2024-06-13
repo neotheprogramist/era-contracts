@@ -54,6 +54,74 @@ contract ExecutingTest is ExecutorTest {
         executor.proveBatches(genesisStoredBatchInfo, storedBatchInfoArray, proofInput);
     }
 
+    function _commitAndProveMultipleBatches(
+        uint256 _count,
+        uint256 _startBatchNumber
+    ) internal returns (IExecutor.StoredBatchInfo[] memory storedBatchInfos) {
+        uint256 timestamp = currentTimestamp + 1;
+
+        IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](_count);
+        IExecutor.StoredBatchInfo memory lastCommited = newStoredBatchInfo;
+        IExecutor.StoredBatchInfo memory lastProved = newStoredBatchInfo;
+
+        for (uint256 i = 0; i < _count; i++) {
+            uint256 batchTimestamp = timestamp + i;
+            bytes[] memory correctL2Logs = Utils.createSystemLogs();
+
+            correctL2Logs[uint256(uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY))] = Utils
+                .constructL2Log(
+                    true,
+                    L2_SYSTEM_CONTEXT_ADDRESS,
+                    uint256(SystemLogKey.PACKED_BATCH_AND_L2_BLOCK_TIMESTAMP_KEY),
+                    Utils.packBatchTimestampAndBlockTimestamp(batchTimestamp, batchTimestamp)
+                );
+
+            correctL2Logs[uint256(uint256(SystemLogKey.PREV_BATCH_HASH_KEY))] = Utils.constructL2Log(
+                true,
+                L2_SYSTEM_CONTEXT_ADDRESS,
+                uint256(SystemLogKey.PREV_BATCH_HASH_KEY),
+                lastCommited.batchHash
+            );
+
+            bytes memory l2Logs = Utils.encodePacked(correctL2Logs);
+
+            IExecutor.CommitBatchInfo memory commitBatch = newCommitBatchInfo;
+            commitBatch.systemLogs = l2Logs;
+            commitBatch.timestamp = uint64(batchTimestamp);
+            commitBatch.batchNumber = uint64(_startBatchNumber + i);
+
+            IExecutor.CommitBatchInfo[] memory commitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
+            commitBatchInfoArray[0] = commitBatch;
+
+            vm.recordLogs();
+            vm.prank(validator);
+            executor.commitBatches(lastCommited, commitBatchInfoArray);
+
+            Vm.Log[] memory entries = vm.getRecordedLogs();
+            lastCommited = IExecutor.StoredBatchInfo({
+                batchNumber: uint64(_startBatchNumber + i),
+                batchHash: entries[0].topics[2],
+                indexRepeatedStorageChanges: 0,
+                numberOfLayer1Txs: 0,
+                priorityOperationsHash: keccak256(""),
+                l2LogsTreeRoot: 0,
+                timestamp: batchTimestamp,
+                commitment: entries[0].topics[3]
+            });
+
+            IExecutor.StoredBatchInfo[] memory toProve = new IExecutor.StoredBatchInfo[](1);
+            toProve[0] = lastCommited;
+
+            vm.prank(validator);
+            executor.proveBatches(lastProved, toProve, proofInput);
+
+            storedBatchInfoArray[i] = lastCommited;
+            lastProved = lastCommited;
+        }
+
+        return storedBatchInfoArray;
+    }
+
     function test_RevertWhen_ExecutingBlockWithWrongBatchNumber() public {
         IExecutor.StoredBatchInfo memory wrongNewStoredBatchInfo = newStoredBatchInfo;
         wrongNewStoredBatchInfo.batchNumber = 10; // Correct is 1
@@ -254,10 +322,71 @@ contract ExecutingTest is ExecutorTest {
         IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](1);
         storedBatchInfoArray[0] = newStoredBatchInfo;
 
+        // solhint-disable-next-line func-named-parameters
+        vm.expectEmit(true, true, true, true, address(executor));
+        emit BlockExecution(
+            newStoredBatchInfo.batchNumber,
+            newStoredBatchInfo.batchHash,
+            newStoredBatchInfo.commitment
+        );
+
         vm.prank(validator);
         executor.executeBatches(storedBatchInfoArray);
 
-        uint256 totalBlocksExecuted = getters.getTotalBlocksExecuted();
-        assertEq(totalBlocksExecuted, 1);
+        assertEq(getters.getTotalBlocksExecuted(), 1);
+        assertEq(getters.l2LogsRootHash(newStoredBatchInfo.batchNumber), newStoredBatchInfo.l2LogsTreeRoot);
+    }
+
+    function test_shouldDeleteSystemUpgradeData(uint256 batchNumberBefore) public {
+        IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](4);
+        IExecutor.StoredBatchInfo[] memory newbatches = _commitAndProveMultipleBatches(3, 2);
+        storedBatchInfoArray[0] = newStoredBatchInfo;
+        storedBatchInfoArray[1] = newbatches[0];
+        storedBatchInfoArray[2] = newbatches[1];
+        storedBatchInfoArray[3] = newbatches[2];
+
+        batchNumberBefore = bound(batchNumberBefore, 1, newbatches[2].batchNumber);
+        utils.util_setL2SystemContractsUpgradeBatchNumber(1);
+        utils.util_setL2SystemContractsUpgradeTxHash(bytes32("upgrade hash"));
+
+        vm.prank(validator);
+        executor.executeBatches(storedBatchInfoArray);
+
+        assertEq(getters.getTotalBlocksExecuted(), 4);
+        assertEq(getters.getL2SystemContractsUpgradeBatchNumber(), 0);
+        assertEq(getters.getL2SystemContractsUpgradeTxHash(), bytes32(0));
+        assertEq(getters.l2LogsRootHash(newbatches[2].batchNumber), newbatches[2].l2LogsTreeRoot);
+    }
+
+    function test_shouldNotDeleteSystemUpgradeData(uint256 batchNumberAfter) public {
+        IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](4);
+        IExecutor.StoredBatchInfo[] memory newbatches = _commitAndProveMultipleBatches(3, 2);
+        storedBatchInfoArray[0] = newStoredBatchInfo;
+        storedBatchInfoArray[1] = newbatches[0];
+        storedBatchInfoArray[2] = newbatches[1];
+        storedBatchInfoArray[3] = newbatches[2];
+
+        batchNumberAfter = bound(batchNumberAfter, newbatches[2].batchNumber + 1, type(uint256).max);
+        utils.util_setL2SystemContractsUpgradeBatchNumber(batchNumberAfter);
+        utils.util_setL2SystemContractsUpgradeTxHash(bytes32("upgrade hash"));
+
+        vm.prank(validator);
+        executor.executeBatches(storedBatchInfoArray);
+
+        assertEq(getters.getTotalBlocksExecuted(), 4);
+        assertEq(getters.getL2SystemContractsUpgradeBatchNumber(), batchNumberAfter);
+        assertEq(getters.getL2SystemContractsUpgradeTxHash(), bytes32("upgrade hash"));
+        assertEq(getters.l2LogsRootHash(newbatches[2].batchNumber), newbatches[2].l2LogsTreeRoot);
+    }
+
+    function test_shouldBeCalledOnlyByValidator(address caller) public {
+        vm.assume(caller != validator);
+
+        IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](1);
+        storedBatchInfoArray[0] = newStoredBatchInfo;
+
+        vm.expectRevert("Hyperchain: not validator");
+        vm.prank(caller);
+        executor.executeBatches(storedBatchInfoArray);
     }
 }
