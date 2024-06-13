@@ -389,25 +389,25 @@ contract DeployL1Script is Script {
             facet: addresses.stateTransition.adminFacet,
             action: Diamond.Action.Add,
             isFreezable: false,
-            selectors: Utils.getAllSelectors(addresses.stateTransition.adminFacet.code)
+            selectors: Utils.getAdminSelectors()
         });
         facetCuts[1] = Diamond.FacetCut({
             facet: addresses.stateTransition.gettersFacet,
             action: Diamond.Action.Add,
             isFreezable: false,
-            selectors: Utils.getAllSelectors(addresses.stateTransition.gettersFacet.code)
+            selectors: Utils.getGettersSelectors()
         });
         facetCuts[2] = Diamond.FacetCut({
             facet: addresses.stateTransition.mailboxFacet,
             action: Diamond.Action.Add,
             isFreezable: true,
-            selectors: Utils.getAllSelectors(addresses.stateTransition.mailboxFacet.code)
+            selectors: Utils.getMailboxSelectors()
         });
         facetCuts[3] = Diamond.FacetCut({
             facet: addresses.stateTransition.executorFacet,
             action: Diamond.Action.Add,
             isFreezable: true,
-            selectors: Utils.getAllSelectors(addresses.stateTransition.executorFacet.code)
+            selectors: Utils.getExecutorSelectors()
         });
 
         VerifierParams memory verifierParams = VerifierParams({
@@ -494,7 +494,7 @@ contract DeployL1Script is Script {
             facet: addresses.stateTransition.adminFacet,
             action: Diamond.Action.Add,
             isFreezable: false,
-            selectors: Utils.getAllSelectors(addresses.stateTransition.adminFacet.code)
+            selectors: Utils.getAdminSelectors()
         });
         Diamond.DiamondCutData memory diamondCut = Diamond.DiamondCutData({
             facetCuts: facetCuts,

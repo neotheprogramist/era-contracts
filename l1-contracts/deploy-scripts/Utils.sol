@@ -13,6 +13,11 @@ import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA} from "contracts/common/Config.sol";
 import {L2_DEPLOYER_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
 import {L2ContractHelper} from "contracts/common/libraries/L2ContractHelper.sol";
 
+import {AdminFacet} from "contracts/state-transition/chain-deps/facets/Admin.sol";
+import {ExecutorFacet} from "contracts/state-transition/chain-deps/facets/Executor.sol";
+import {GettersFacet} from "contracts/state-transition/chain-deps/facets/Getters.sol";
+import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
+
 library Utils {
     // Cheatcodes address, 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D.
     address internal constant VM_ADDRESS = address(uint160(uint256(keccak256("hevm cheat code"))));
@@ -320,5 +325,76 @@ library Utils {
             governance.execute{value: _value}(operation);
         }
         vm.stopBroadcast();
+    }
+
+    function getAdminSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](11);
+        selectors[0] = AdminFacet.setPendingAdmin.selector;
+        selectors[1] = AdminFacet.acceptAdmin.selector;
+        selectors[2] = AdminFacet.setValidator.selector;
+        selectors[3] = AdminFacet.setPorterAvailability.selector;
+        selectors[4] = AdminFacet.setPriorityTxMaxGasLimit.selector;
+        selectors[5] = AdminFacet.changeFeeParams.selector;
+        selectors[6] = AdminFacet.setTokenMultiplier.selector;
+        selectors[7] = AdminFacet.upgradeChainFromVersion.selector;
+        selectors[8] = AdminFacet.executeUpgrade.selector;
+        selectors[9] = AdminFacet.freezeDiamond.selector;
+        selectors[10] = AdminFacet.unfreezeDiamond.selector;
+        return selectors;
+    }
+
+    function getExecutorSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](4);
+        selectors[0] = ExecutorFacet.commitBatches.selector;
+        selectors[1] = ExecutorFacet.proveBatches.selector;
+        selectors[2] = ExecutorFacet.executeBatches.selector;
+        selectors[3] = ExecutorFacet.revertBatches.selector;
+        return selectors;
+    }
+
+    function getGettersSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](29);
+        selectors[0] = GettersFacet.getVerifier.selector;
+        selectors[1] = GettersFacet.getAdmin.selector;
+        selectors[2] = GettersFacet.getPendingAdmin.selector;
+        selectors[3] = GettersFacet.getTotalBlocksCommitted.selector;
+        selectors[4] = GettersFacet.getTotalBlocksVerified.selector;
+        selectors[5] = GettersFacet.getTotalBlocksExecuted.selector;
+        selectors[6] = GettersFacet.getTotalPriorityTxs.selector;
+        selectors[7] = GettersFacet.getFirstUnprocessedPriorityTx.selector;
+        selectors[8] = GettersFacet.getPriorityQueueSize.selector;
+        selectors[9] = GettersFacet.priorityQueueFrontOperation.selector;
+        selectors[10] = GettersFacet.isValidator.selector;
+        selectors[11] = GettersFacet.l2LogsRootHash.selector;
+        selectors[12] = GettersFacet.storedBatchHash.selector;
+        selectors[13] = GettersFacet.getL2BootloaderBytecodeHash.selector;
+        selectors[14] = GettersFacet.getL2DefaultAccountBytecodeHash.selector;
+        selectors[15] = GettersFacet.getVerifierParams.selector;
+        selectors[16] = GettersFacet.isDiamondStorageFrozen.selector;
+        selectors[17] = GettersFacet.getPriorityTxMaxGasLimit.selector;
+        selectors[18] = GettersFacet.isEthWithdrawalFinalized.selector;
+        selectors[19] = GettersFacet.facets.selector;
+        selectors[20] = GettersFacet.facetFunctionSelectors.selector;
+        selectors[21] = GettersFacet.facetAddresses.selector;
+        selectors[22] = GettersFacet.facetAddress.selector;
+        selectors[23] = GettersFacet.isFunctionFreezable.selector;
+        selectors[24] = GettersFacet.isFacetFreezable.selector;
+        selectors[25] = GettersFacet.getTotalBatchesCommitted.selector;
+        selectors[26] = GettersFacet.getTotalBatchesVerified.selector;
+        selectors[27] = GettersFacet.getTotalBatchesExecuted.selector;
+        selectors[28] = GettersFacet.getL2SystemContractsUpgradeTxHash.selector;
+        return selectors;
+    }
+
+    function getMailboxSelectors() public pure returns (bytes4[] memory) {
+        bytes4[] memory selectors = new bytes4[](7);
+        selectors[0] = MailboxFacet.proveL2MessageInclusion.selector;
+        selectors[1] = MailboxFacet.proveL2LogInclusion.selector;
+        selectors[2] = MailboxFacet.proveL1ToL2TransactionStatus.selector;
+        selectors[3] = MailboxFacet.finalizeEthWithdrawal.selector;
+        selectors[4] = MailboxFacet.requestL2Transaction.selector;
+        selectors[5] = MailboxFacet.bridgehubRequestL2Transaction.selector;
+        selectors[6] = MailboxFacet.l2TransactionBaseCost.selector;
+        return selectors;
     }
 }
