@@ -41,7 +41,7 @@ contract DeployErc20Script is Script {
     function getTokensAddresses() public view returns (address[] memory) {
         uint256 tokensLength = config.tokens.length;
         address[] memory addresses = new address[](tokensLength);
-        for (uint256 i = 0; i < tokensLength; i++) {
+        for (uint256 i = 0; i < tokensLength; ++i) {
             addresses[i] = config.tokens[i].addr;
         }
         return addresses;
