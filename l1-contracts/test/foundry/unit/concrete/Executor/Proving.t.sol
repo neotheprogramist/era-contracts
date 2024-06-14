@@ -55,7 +55,7 @@ contract ProvingTest is ExecutorTest {
         uint256 timestamp = currentTimestamp + 1;
 
         IExecutor.StoredBatchInfo[] memory storedBatchInfoArray = new IExecutor.StoredBatchInfo[](_count);
-        IExecutor.StoredBatchInfo memory lastCommited = newStoredBatchInfo;
+        IExecutor.StoredBatchInfo memory lastCommitted = newStoredBatchInfo;
 
         for (uint256 i = 0; i < _count; i++) {
             uint256 batchTimestamp = timestamp + i;
@@ -73,7 +73,7 @@ contract ProvingTest is ExecutorTest {
                 true,
                 L2_SYSTEM_CONTEXT_ADDRESS,
                 uint256(SystemLogKey.PREV_BATCH_HASH_KEY),
-                lastCommited.batchHash
+                lastCommitted.batchHash
             );
 
             bytes memory l2Logs = Utils.encodePacked(correctL2Logs);
@@ -88,10 +88,10 @@ contract ProvingTest is ExecutorTest {
 
             vm.recordLogs();
             vm.prank(validator);
-            executor.commitBatches(lastCommited, commitBatchInfoArray);
+            executor.commitBatches(lastCommitted, commitBatchInfoArray);
 
             Vm.Log[] memory entries = vm.getRecordedLogs();
-            lastCommited = IExecutor.StoredBatchInfo({
+            lastCommitted = IExecutor.StoredBatchInfo({
                 batchNumber: uint64(_startBatchNumber + i),
                 batchHash: entries[0].topics[2],
                 indexRepeatedStorageChanges: 0,
@@ -102,7 +102,7 @@ contract ProvingTest is ExecutorTest {
                 commitment: entries[0].topics[3]
             });
 
-            storedBatchInfoArray[i] = lastCommited;
+            storedBatchInfoArray[i] = lastCommitted;
         }
 
         return storedBatchInfoArray;
