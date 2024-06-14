@@ -224,7 +224,7 @@ contract CommittingTest is ExecutorTest {
         return keccak256(slice);
     }
 
-    function test_RevertWhen_pubdataHashAndCommitmentMissmatch() public {
+    function test_RevertWhen_pubdataHashAndCommitmentMismatch() public {
         bytes[] memory wrongL2Logs = Utils.createSystemLogs();
         bytes memory pubdataCommitment = new bytes(64);
         bytes32 pubdataCommitmentHash = hashSlice(pubdataCommitment, 1, pubdataCommitment.length - 32);

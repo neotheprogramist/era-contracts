@@ -75,7 +75,6 @@ contract ExecutorTest is Test {
         return selectors;
     }
 
-
     function getMailboxSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = mailbox.proveL2MessageInclusion.selector;
