@@ -185,21 +185,12 @@ contract CommittingTest is ExecutorTest {
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 
-    function test_RevertWhen_validiumDataNotEmpty() public {
+    function test_RevertWhen_validiumDataWrongCommitmentsLength() public {
         FeeParams memory feeParams = defaultFeeParams();
         feeParams.pubdataPricingMode = PubdataPricingMode.Validium;
         utils.util_setFeeParams(feeParams);
 
         bytes[] memory wrongL2Logs = Utils.createSystemLogs();
-        bytes memory pubdataCommitment = "\x01";
-
-        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
-            true,
-            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
-            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
-            bytes32("")
-        );
-
         IExecutor.CommitBatchInfo memory wrongNewCommitBatchInfo = newCommitBatchInfo;
         wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
         IExecutor.CommitBatchInfo[] memory wrongNewCommitBatchInfoArray = new IExecutor.CommitBatchInfo[](1);
@@ -207,34 +198,6 @@ contract CommittingTest is ExecutorTest {
 
         vm.prank(validator);
         vm.expectRevert(bytes.concat("EF: v0l"));
-        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
-
-        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
-            true,
-            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
-            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
-            bytes32("f")
-        );
-        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
-        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
-        vm.prank(validator);
-        vm.expectRevert(bytes.concat("v0h"));
-        executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
-
-        wrongL2Logs = Utils.createSystemLogs();
-        wrongL2Logs[uint256(uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY))] = Utils.constructL2Log(
-            true,
-            L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR,
-            uint256(SystemLogKey.TOTAL_L2_TO_L1_PUBDATA_KEY),
-            bytes32("")
-        );
-        wrongNewCommitBatchInfo.systemLogs = Utils.encodePacked(wrongL2Logs);
-        wrongNewCommitBatchInfo.pubdataCommitments = pubdataCommitment;
-        wrongNewCommitBatchInfoArray[0] = wrongNewCommitBatchInfo;
-
-        vm.prank(validator);
-        // it goes through to the next revert
-        vm.expectRevert(bytes.concat("tb"));
         executor.commitBatches(genesisStoredBatchInfo, wrongNewCommitBatchInfoArray);
     }
 

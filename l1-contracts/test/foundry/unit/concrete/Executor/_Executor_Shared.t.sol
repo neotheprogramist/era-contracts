@@ -29,6 +29,7 @@ contract ExecutorTest is Test {
     address internal validator;
     address internal randomSigner;
     address internal blobVersionedHashRetriever;
+    address internal testnetVerifierAddress;
     AdminFacet internal admin;
     TestExecutor internal executor;
     GettersFacet internal getters;
@@ -47,6 +48,7 @@ contract ExecutorTest is Test {
 
     event BlockCommit(uint256 indexed batchNumber, bytes32 indexed batchHash, bytes32 indexed commitment);
     event BlockExecution(uint256 indexed batchNumber, bytes32 indexed batchHash, bytes32 indexed commitment);
+    event BlocksVerification(uint256 indexed previousLastVerifiedBatch, uint256 indexed currentLastVerifiedBatch);
 
     function getAdminSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](11);
@@ -133,6 +135,7 @@ contract ExecutorTest is Test {
         });
 
         TestnetVerifier testnetVerifier = new TestnetVerifier();
+        testnetVerifierAddress = address(testnetVerifier);
 
         InitializeData memory params = InitializeData({
             // TODO REVIEW
