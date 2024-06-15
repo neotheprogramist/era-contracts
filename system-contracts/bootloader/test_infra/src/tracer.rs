@@ -63,6 +63,11 @@ impl<S, H: HistoryMode> DynTracer<S, SimpleMemory<H>> for BootloaderTestTracer {
         if let TestVmHook::RequestedMessage(err_code) = &hook {
             let err_message = match err_code {
                 13 => "Max priority fee greater than max fee",
+                16 => "Paymaster validation error: Paymaster returned invalid context",
+                20 => "Bootloader did not have enough gas to start the transaction",
+                21 => "Account validation returned invalid magic value. Most often this means that the signature is incorrect",
+                26 => "Failed to publish timestamp data to L1: The current batch number must be greater than 0",
+                29 => "Failed to call system context contract: Error function_selector = 0x, data = 0x",
                 _ => "",
             };
 

@@ -359,7 +359,7 @@ contract SystemContext is ISystemContext, ISystemContextDeprecated, ISystemContr
                 _l2BlockTimestamp >= currentBatchTimestamp,
                 "The timestamp of the L2 block must be greater than or equal to the timestamp of the current batch"
             );
-            require(_maxVirtualBlocksToCreate > 0, "There must be a virtual block created at the start of the batch");
+            require(_maxVirtualBlocksToCreate > 0, "There must be a virtual block created at SYSTEM_CONTEXT_ADDRthe start of the batch");
         }
 
         (uint128 currentL2BlockNumber, uint128 currentL2BlockTimestamp) = getL2BlockNumberAndTimestamp();

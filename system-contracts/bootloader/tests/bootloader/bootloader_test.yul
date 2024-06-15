@@ -214,3 +214,231 @@ function TEST_validateOperatorProvidedPrices2() {
 function TEST_validateOperatorProvidedPrices3() {
     validateOperatorProvidedPrices(1000000000000, 100000000000000)
 }
+
+function TEST_1_ensureNonceUsage() {
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+
+    let from := getFrom(innerTxDataOffset)
+    let nonce := getNonce(innerTxDataOffset)
+    testing_log("Nonce", nonce)
+    let shouldNonceBeUsed := 0
+
+    ensureNonceUsage(from, nonce, shouldNonceBeUsed)
+}
+
+function TEST_ensureNonceUsageError() {
+    //make it fail
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+
+    let from := getFrom(innerTxDataOffset)
+    let nonce := getNonce(innerTxDataOffset)
+    testing_log("Nonce", nonce)
+    let shouldNonceBeUsed := 0
+
+    ensureNonceUsage(from, nonce, shouldNonceBeUsed)
+}
+
+function TEST_2i7i8i9_ensurePayment() {
+    //bootloader out of gas
+    let txDataOffset := testing_txDataOffset(1)
+    let gass := gas()
+
+    testing_log("Gas", gass)
+    let gasPrice := sub(mload(128), 14000000000)
+    testing_log("gasPrice", gasPrice)
+
+    ensurePayment(txDataOffset, gasPrice)
+}
+
+function TEST_ensureAccount() {
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+    let addr := getFrom(innerTxDataOffset)
+    testing_log("Address", addr)
+
+    ensureAccount(addr)
+}
+
+function TEST_ensureAccountError4() {
+    //make it fail
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+    let addr := getFrom(innerTxDataOffset)
+    testing_log("Address", addr)
+
+    ensureAccount(addr)
+}
+
+function TEST_ensureAccountError3() {
+    //make it fail
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+    let addr := getFrom(innerTxDataOffset)
+    testing_log("Address", addr)
+
+    ensureAccount(addr)
+}
+
+function TEST_setNewBatch() {
+    //the function panics on revert
+    let prevBatchHash := mload(32)
+    let newTimestamp := mload(64)
+    let newBatchNumber := mload(96)
+    let baseFee := basefee()
+
+    setNewBatch(prevBatchHash, newTimestamp, newBatchNumber, baseFee)
+}
+
+function TEST_16i22_storePaymasterContextAndCheckMagic() {
+    //it halts not fails
+    testing_testError(16)
+
+    storePaymasterContextAndCheckMagic()
+}
+
+function TEST_18_markFactoryDepsForTx() {
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+
+    markFactoryDepsForTx(innerTxDataOffset, 1)
+}
+
+function TEST_19_l2TxValidation() {
+//    let txDataOffset := testing_txDataOffset(0)
+//    let gasLimitForTx :=  
+//    let gasPrice :=
+//    let basePubdataSpent :=
+//    let reservedGas :=
+//    let gasPerPubdata :=
+
+//    l2TxValidation(
+//        txDataOffset,
+//        gasLimitForTx,
+//        gasPrice,
+//        basePubdataSpent,
+//        reservedGas,
+//        gasPerPubdata
+//    )
+}
+
+function TEST_checkEnoughGas() {
+    let gasToProvide := 0
+
+    checkEnoughGas(gasToProvide)
+}
+
+function TEST_checkEnoughGasError() {
+    //it halts not fails
+    //There is 4294967018 gas
+    let gasToProvide := 4294967019
+    testing_testError(20)
+
+    checkEnoughGas(gasToProvide)
+}
+
+function TEST_21_ensureCorrectAccountMagic() {
+    //it halts not fails
+    testing_testError(21)
+
+    ensureCorrectAccountMagic()
+}
+
+function TEST_mintEther() {
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+    
+    let to := getFrom(innerTxDataOffset)
+    let amount := getValue(innerTxDataOffset)
+    let useNearCallPanic := true
+
+    mintEther(to, amount, useNearCallPanic)
+}
+
+function TEST_mintEtherError() {
+    //make it fail
+    let txDataOffset := testing_txDataOffset(0)
+    let innerTxDataOffset := add(txDataOffset, 32)
+
+    let to := getFrom(innerTxDataOffset)
+    let amount := 10
+    let useNearCallPanic := false
+
+    testing_testError(23)
+
+    mintEther(to, amount, useNearCallPanic)
+}
+
+function TEST_24_appendTransactionHash() {
+    let txDataOffset := testing_txDataOffset(0)
+    let txHash := getCanonicalL1TxHash(txDataOffset)
+    let isL1Tx := true
+
+    appendTransactionHash(txHash, isL1Tx)
+}
+
+function TEST_25_setL2Block() {
+    let txId := 0
+
+    setL2Block(txId)
+}
+
+function TEST_publishTimestampDataToL1() {
+ //   mstore(1, 0x32)
+ //   testing_log("mstore", mload(32))
+ //   publishTimestampDataToL1()
+ //   testing_assertEq(0, 0, "yes")
+}
+
+function TEST_publishTimestampDataToL1Error() {
+    testing_testError(26)
+
+    publishTimestampDataToL1()
+}
+
+function TEST_l1MessengerPublishingCall() { 
+    l1MessengerPublishingCall()
+}
+
+function TEST_l1MessengerPublishingCallError() {
+    //make it fail
+    testing_testError(27)
+
+    l1MessengerPublishingCall()
+}
+
+function TEST_28_sendL2LogUsingL1Messenger() {
+    let txDataOffset := testing_txDataOffset(0)
+
+    let baseFee := max(
+        mload(160),
+        ceilDiv(1000000000000000, MAX_L2_GAS_PER_PUBDATA())
+    )
+
+    let gasPerPubdata := gasPerPubdataFromBaseFee(baseFee, 1000000000000000)
+    let basePubdataSpent := getPubdataCounter()
+    let canonicalL1TxHash := 0
+    let _ := 0
+    canonicalL1TxHash, _ := l1TxPreparation(txDataOffset, gasPerPubdata, basePubdataSpent)
+
+    let isService := true
+    let key := canonicalL1TxHash
+    let value := 1
+
+    sendL2LogUsingL1Messenger(isService, key, value)
+}
+
+function TEST_callSystemContext() {
+   // let paddedSelector := {{RIGHT_PADDED_INCREMENT_TX_NUMBER_IN_BLOCK_SELECTOR}}
+
+   // callSystemContext(paddedSelector)
+}
+
+function TEST_callSystemContextError() {
+    let paddedSelector := 4294967296
+
+    testing_testError(29)
+
+    callSystemContext(paddedSelector)
+}
