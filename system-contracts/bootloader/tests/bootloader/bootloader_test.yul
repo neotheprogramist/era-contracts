@@ -109,3 +109,81 @@ function TEST_systemLogKeys() {
     testing_assertEq(numberOfLayer1TxsLogKey, 6, "Invalid num layer 1 txns log key")
     testing_assertEq(protocolUpgradeTxHashKey, 13, "Invalid protocol upgrade txn hash log key")
 }
+
+function TEST_gasPerPubdataFromBaseFee() {
+    let expected := 0 
+
+    let baseFee := basefee()
+    let pubdataPrice := 1000000000000000
+    let received := gasPerPubdataFromBaseFee(baseFee, pubdataPrice
+
+    testing_assertEq(expected, received, "Invalid Pubdata from base fee")
+}
+
+function TEST_scratchSpaceBeginByte() {
+    testing_assertEq(SCRATCH_SPACE_BEGIN_BYTE(), 256, "Invalid scratch space begin byte")
+}
+
+function TEST_paymasterContextBeginSlot() {
+    testing_assertEq(PAYMASTER_CONTEXT_BEGIN_SLOT(), 40, "Invalid Paymaster begin slot")
+}
+
+function TEST_paymasterContextBeginByte() {
+    testing_assertEq(PAYMASTER_CONTEXT_BEGIN_BYTE(), 1280, "Invalid Paymaster begin byte")
+}
+
+function TEST_maxPostopSlots() {
+    testing_assertEq(MAX_POSTOP_SLOTS(), 40, "Invalid number of PostOp slots")
+}
+
+function TEST_currentL2TxHashesBeginSlot() {
+    testing_assertEq(CURRENT_L2_TX_HASHES_BEGIN_SLOT(), 73, "Invalid current L2 hashes begin slot")
+}
+
+function TEST_currentL2TxHashesBeginByte() {
+    testing_assertEq(CURRENT_L2_TX_HASHES_BEGIN_BYTE(), 2336, "Invalid current L2 hashes begin byte")
+}
+
+function TEST_newFactoryDepsReservedSlots() {
+    testing_assertEq(NEW_FACTORY_DEPS_RESERVED_SLOTS(), 36, "Invalid Factory reserved slots")
+}
+
+function TEST_newFactoryDepsBeginSlot() {
+    testing_assertEq(NEW_FACTORY_DEPS_BEGIN_SLOT(), 75, "Invalid Factory begin slot")
+}
+
+function TEST_newFactoryDepsBeginByte() {
+    testing_assertEq(NEW_FACTORY_DEPS_BEGIN_BYTE(), 2400, "Invalid Factory begin byte")
+}
+
+function TEST_txOperatorRefundBeginSlot() {
+    testing_assertEq(TX_OPERATOR_REFUND_BEGIN_SLOT(), 111, "Invalid refund slot")
+}
+
+function TEST_txOperatorRefundBeginByte() {
+    testing_assertEq(TX_OPERATOR_REFUND_BEGIN_BYTE(), 3552, "Invalid refund byte")
+}
+
+function TEST_txOperatorTrustedGasLimitBeginSlot() {
+    testing_assertEq(TX_OPERATOR_TRUSTED_GAS_LIMIT_BEGIN_SLOT(), 20111, "Invalid trusted gas limit begin slot")
+}
+
+function TEST_txOperatorTrustedGasLimitBeginByte() {
+    testing_assertEq(TX_OPERATOR_TRUSTED_GAS_LIMIT_BEGIN_BYTE(), 643552, "Invalid trusted gas limit begin byte")
+}
+
+function TEST_txOperatorL2BlockInfoBeginSlot() {
+    testing_assertEq(TX_OPERATOR_L2_BLOCK_INFO_BEGIN_SLOT(), 30111, "Invalid L2 block info begin slot")
+}
+
+function TEST_txOperatorL2BlockInfoBeginByte() {
+    testing_assertEq(TX_OPERATOR_L2_BLOCK_INFO_BEGIN_BYTE(), 963552, "Invalid L2 block info begin byte")
+}
+
+function TEST_txOperatorL2BlockInfoSizeBytes() {
+    testing_assertEq(TX_OPERATOR_L2_BLOCK_INFO_SIZE_BYTES(), 128, "Invalid L2 block info size bytes")
+}
+
+function TEST_txOperatorL2BlockInfoSlots() {
+    testing_assertEq(TX_OPERATOR_L2_BLOCK_INFO_SLOTS(), 40004, "Invalid L2 block info slots")
+}
