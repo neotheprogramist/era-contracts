@@ -41,6 +41,8 @@ contract L2SharedBridge is IL2SharedBridge, Initializable {
 
     /// @dev Contract is expected to be used as proxy implementation.
     /// @dev Disable the initialization to prevent Parity hack.
+    uint256 public immutable ERA_CHAIN_ID;
+
     constructor(uint256 _eraChainId) {
         ERA_CHAIN_ID = _eraChainId;
         _disableInitializers();
