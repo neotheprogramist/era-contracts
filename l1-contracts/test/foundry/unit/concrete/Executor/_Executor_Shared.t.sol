@@ -20,16 +20,21 @@ import {IExecutor} from "contracts/state-transition/chain-interfaces/IExecutor.s
 import {IVerifier} from "contracts/state-transition/chain-interfaces/IVerifier.sol";
 import {Diamond} from "contracts/state-transition/libraries/Diamond.sol";
 import {TestnetVerifier} from "contracts/state-transition/TestnetVerifier.sol";
+import {Utils} from "foundry-test/unit/concrete/Utils/Utils.sol";
+import {UtilsFacet} from "foundry-test/unit/concrete/Utils/UtilsFacet.sol";
 
 contract ExecutorTest is Test {
+    address internal stmAddress;
     address internal owner;
     address internal validator;
     address internal randomSigner;
     address internal blobVersionedHashRetriever;
+    address internal testnetVerifierAddress;
     AdminFacet internal admin;
     TestExecutor internal executor;
     GettersFacet internal getters;
     MailboxFacet internal mailbox;
+    UtilsFacet internal utils;
     bytes32 internal newCommittedBlockBatchHash;
     bytes32 internal newCommittedBlockCommitment;
     uint256 internal currentTimestamp;
@@ -40,6 +45,10 @@ contract ExecutorTest is Test {
 
     IExecutor.StoredBatchInfo internal genesisStoredBatchInfo;
     IExecutor.ProofInput internal proofInput;
+
+    event BlockCommit(uint256 indexed batchNumber, bytes32 indexed batchHash, bytes32 indexed commitment);
+    event BlockExecution(uint256 indexed batchNumber, bytes32 indexed batchHash, bytes32 indexed commitment);
+    event BlocksVerification(uint256 indexed previousLastVerifiedBatch, uint256 indexed currentLastVerifiedBatch);
 
     function getAdminSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](11);
@@ -66,39 +75,6 @@ contract ExecutorTest is Test {
         return selectors;
     }
 
-    function getGettersSelectors() public view returns (bytes4[] memory) {
-        bytes4[] memory selectors = new bytes4[](28);
-        selectors[0] = getters.getVerifier.selector;
-        selectors[1] = getters.getAdmin.selector;
-        selectors[2] = getters.getPendingAdmin.selector;
-        selectors[3] = getters.getTotalBlocksCommitted.selector;
-        selectors[4] = getters.getTotalBlocksVerified.selector;
-        selectors[5] = getters.getTotalBlocksExecuted.selector;
-        selectors[6] = getters.getTotalPriorityTxs.selector;
-        selectors[7] = getters.getFirstUnprocessedPriorityTx.selector;
-        selectors[8] = getters.getPriorityQueueSize.selector;
-        selectors[9] = getters.priorityQueueFrontOperation.selector;
-        selectors[10] = getters.isValidator.selector;
-        selectors[11] = getters.l2LogsRootHash.selector;
-        selectors[12] = getters.storedBatchHash.selector;
-        selectors[13] = getters.getL2BootloaderBytecodeHash.selector;
-        selectors[14] = getters.getL2DefaultAccountBytecodeHash.selector;
-        selectors[15] = getters.getVerifierParams.selector;
-        selectors[16] = getters.isDiamondStorageFrozen.selector;
-        selectors[17] = getters.getPriorityTxMaxGasLimit.selector;
-        selectors[18] = getters.isEthWithdrawalFinalized.selector;
-        selectors[19] = getters.facets.selector;
-        selectors[20] = getters.facetFunctionSelectors.selector;
-        selectors[21] = getters.facetAddresses.selector;
-        selectors[22] = getters.facetAddress.selector;
-        selectors[23] = getters.isFunctionFreezable.selector;
-        selectors[24] = getters.isFacetFreezable.selector;
-        selectors[25] = getters.getTotalBatchesCommitted.selector;
-        selectors[26] = getters.getTotalBatchesVerified.selector;
-        selectors[27] = getters.getTotalBatchesExecuted.selector;
-        return selectors;
-    }
-
     function getMailboxSelectors() private view returns (bytes4[] memory) {
         bytes4[] memory selectors = new bytes4[](6);
         selectors[0] = mailbox.proveL2MessageInclusion.selector;
@@ -110,7 +86,7 @@ contract ExecutorTest is Test {
         return selectors;
     }
 
-    function defaultFeeParams() private pure returns (FeeParams memory feeParams) {
+    function defaultFeeParams() internal pure returns (FeeParams memory feeParams) {
         feeParams = FeeParams({
             pubdataPricingMode: PubdataPricingMode.Rollup,
             batchOverheadL1Gas: 1_000_000,
@@ -133,6 +109,7 @@ contract ExecutorTest is Test {
         admin = new AdminFacet();
         getters = new GettersFacet();
         mailbox = new MailboxFacet(eraChainId);
+        utils = new UtilsFacet();
 
         DummyStateTransitionManager stateTransitionManager = new DummyStateTransitionManager();
         vm.mockCall(
@@ -140,6 +117,7 @@ contract ExecutorTest is Test {
             abi.encodeWithSelector(IStateTransitionManager.protocolVersionIsActive.selector),
             abi.encode(bool(true))
         );
+        stmAddress = address(stateTransitionManager);
         DiamondInit diamondInit = new DiamondInit();
 
         bytes8 dummyHash = 0x1234567890123456;
@@ -156,6 +134,7 @@ contract ExecutorTest is Test {
         });
 
         TestnetVerifier testnetVerifier = new TestnetVerifier();
+        testnetVerifierAddress = address(testnetVerifier);
 
         InitializeData memory params = InitializeData({
             // TODO REVIEW
@@ -183,7 +162,7 @@ contract ExecutorTest is Test {
 
         bytes memory diamondInitData = abi.encodeWithSelector(diamondInit.initialize.selector, params);
 
-        Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](4);
+        Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](5);
         facetCuts[0] = Diamond.FacetCut({
             facet: address(admin),
             action: Diamond.Action.Add,
@@ -200,13 +179,19 @@ contract ExecutorTest is Test {
             facet: address(getters),
             action: Diamond.Action.Add,
             isFreezable: false,
-            selectors: getGettersSelectors()
+            selectors: Utils.getGettersSelectors()
         });
         facetCuts[3] = Diamond.FacetCut({
             facet: address(mailbox),
             action: Diamond.Action.Add,
             isFreezable: true,
             selectors: getMailboxSelectors()
+        });
+        facetCuts[4] = Diamond.FacetCut({
+            facet: address(utils),
+            action: Diamond.Action.Add,
+            isFreezable: true,
+            selectors: Utils.getUtilsFacetSelectors()
         });
 
         Diamond.DiamondCutData memory diamondCutData = Diamond.DiamondCutData({
@@ -222,6 +207,7 @@ contract ExecutorTest is Test {
         getters = GettersFacet(address(diamondProxy));
         mailbox = MailboxFacet(address(diamondProxy));
         admin = AdminFacet(address(diamondProxy));
+        utils = UtilsFacet(address(diamondProxy));
 
         // Initiate the token multiplier to enable L1 -> L2 transactions.
         vm.prank(address(stateTransitionManager));
