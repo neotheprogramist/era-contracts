@@ -7,6 +7,8 @@ import {GettersFacetTest} from "./_Getters_Shared.t.sol";
 contract IsFacetFreezableTest is GettersFacetTest {
     function test_noSelectors() public {
         address facet = makeAddr("facet");
+        gettersFacetWrapper.util_setZeroSelectors(facet);
+
         bool received = gettersFacet.isFacetFreezable(facet);
 
         assertFalse(received, "Received isFacetFreezable is incorrect");
