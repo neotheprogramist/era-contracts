@@ -339,16 +339,17 @@ library DeployL1Utils {
         }
         address contractAddress = _deployViaCreate2(code);
         console.log("Verifier deployed at:", contractAddress);
+
+        console.log("Salt before saving verifier address");
+        console.logBytes32(config().contracts.create2FactorySalt);
         addresses().stateTransition.verifier = contractAddress;
+        console.log("Salt after saving verifier address" );
+        console.logBytes32(config().contracts.create2FactorySalt);
+         //config().contracts.create2FactorySalt = 0x00000000000000000000000000000000000000000000000000000000000000ff;
     }
 
     function _deployDefaultUpgrade() public {
-        config().contracts.create2FactorySalt = 0x00000000000000000000000000000000000000000000000000000000000000ff;
-        console.log("Before");
-        console.logBytes32(config().contracts.create2FactorySalt);
         address contractAddress = _deployViaCreate2(type(DefaultUpgrade).creationCode);
-        console.log("After");
-        console.logBytes32(config().contracts.create2FactorySalt);
         console.log("DefaultUpgrade deployed at:", contractAddress);
         addresses().stateTransition.defaultUpgrade = contractAddress;
     }
@@ -467,8 +468,6 @@ library DeployL1Utils {
             isFreezable: false,
             selectors: Utils.getAllSelectors(addresses().stateTransition.adminFacet.code)
         });
-        console.log("Facet", facetCuts[0].facet);
-        console.log("Admin", addresses().stateTransition.adminFacet);
         facetCuts[1] = Diamond.FacetCut({
             facet: addresses().stateTransition.gettersFacet,
             action: Diamond.Action.Add,
@@ -493,7 +492,6 @@ library DeployL1Utils {
             recursionLeafLevelVkHash: config().contracts.recursionLeafLevelVkHash,
             recursionCircuitsSetVksHash: config().contracts.recursionCircuitsSetVksHash
         });
-        console.log("Pubdata", uint(config().contracts.diamondInitPubdataPricingMode));
         FeeParams memory feeParams = FeeParams({
             pubdataPricingMode: config().contracts.diamondInitPubdataPricingMode,
             batchOverheadL1Gas: uint32(config().contracts.diamondInitBatchOverheadL1Gas),
@@ -547,7 +545,6 @@ library DeployL1Utils {
         );
         console.log("StateTransitionManagerProxy deployed at:", contractAddress);
         addresses().stateTransition.stateTransitionProxy = contractAddress;
-        console.log("Pubdata", uint(config().contracts.diamondInitPubdataPricingMode));
         return contractAddress;
     }
 
@@ -826,16 +823,14 @@ library DeployL1Utils {
 
     function _deployViaCreate2a(bytes memory _bytecode) public returns (address) {
         bytes32 _salt = config().contracts.create2FactorySalt;
-        console.log("Salt1");
+        console.log("Deploy via Create2 Salt");
         console.logBytes32(_salt);
         address _factory = addresses().create2Factory;
-        console2.log("Factory1", _factory);
 
         if (_bytecode.length == 0) {
             revert("Bytecode is not set");
         }
         address contractAddress = vm.computeCreate2Address(_salt, keccak256(_bytecode), _factory);
-        console.log("Address1", contractAddress);
         if (contractAddress.code.length != 0) {
             return contractAddress;
         }    
@@ -844,7 +839,6 @@ library DeployL1Utils {
 
         (bool success, bytes memory data) = _factory.call(abi.encodePacked(_salt, _bytecode));
         contractAddress = Utils.bytesToAddress(data);
-        console2.log("Address", contractAddress);
         if (!success || contractAddress == address(0) || contractAddress.code.length == 0) {
             revert("Failed to deploy contract via create2");
         }
@@ -854,15 +848,13 @@ library DeployL1Utils {
 
     function _deployViaCreate21(bytes memory _bytecode) public returns (address) {
         bytes32 _salt = config().contracts.create2FactorySalt;
-        console.log("Salt1");
+        console.log("Deploy via Create2 Salt");
         console.logBytes32(_salt);
         address _factory = addresses().create2Factory;
-        console2.log("Factory1", _factory);
         if (_bytecode.length == 0) {
             revert("Bytecode is not set");
         }
         address contractAddress = vm.computeCreate2Address(_salt, keccak256(_bytecode), _factory);
-        console.log("Address1", contractAddress);
         if (contractAddress.code.length != 0) {
             return contractAddress;
         }
@@ -871,18 +863,10 @@ library DeployL1Utils {
     }
 
     function _deployViaCreate22(bytes memory _bytecode) public returns (address) {
-        // console.log("Bytes");
-        // console.logBytes(_bytecode);
         bytes32 _salt = config().contracts.create2FactorySalt;
-        console.log("Salt2");
-        console.logBytes32(_salt);
         address _factory = addresses().create2Factory;
-        console2.log("Factory2", _factory);
         (bool success, bytes memory data) = _factory.call(abi.encodePacked(_salt, _bytecode));
         address contractAddress = Utils.bytesToAddress(data);
-        // console.log("success", success);
-        console.log("Address2", contractAddress);
-        // console.log("length", contractAddress.code.length);
 
         if (!success || contractAddress == address(0) || contractAddress.code.length == 0) {
             revert("Failed to deploy contract via create2");

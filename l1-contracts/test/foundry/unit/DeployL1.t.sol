@@ -123,14 +123,14 @@ contract DeployL1Test is Test {
 
         _run();
 
-        AcceptAdmin acceptAdminScript = new AcceptAdmin();
-        // acceptAdminScript.run();
+        // AcceptAdmin acceptAdminScript = new AcceptAdmin();
+        // // acceptAdminScript.run();
         
-        address _governance = DeployL1Utils.addresses().governance;
-        acceptAdminScript.acceptAdmin();
-        
-        hyperchain = new RegisterHyperchainScript();
-        hyperchain.run();
+        // address _governance = DeployL1Utils.addresses().governance;
+        // acceptAdminScript.acceptAdmin();
+
+        // hyperchain = new RegisterHyperchainScript();
+        // hyperchain.run();
 
         bridgehubProxyAddress = DeployL1Utils.getBridgehubProxyAddress();
         bridgeHub = Bridgehub(bridgehubProxyAddress);
