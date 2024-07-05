@@ -456,6 +456,7 @@ library DeployL1Utils {
     }
 
     function _deployStateTransitionManagerProxy() public returns (address) {
+        _setConfig();
         Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](4);
         facetCuts[0] = Diamond.FacetCut({
             facet: addresses().stateTransition.adminFacet,
@@ -513,8 +514,7 @@ library DeployL1Utils {
             initAddress: addresses().stateTransition.diamondInit,
             initCalldata: abi.encode(initializeData)
         });
-        console.log("Blob", addresses().blobVersionedHashRetriever);
-        console.log("initAddress", addresses().stateTransition.diamondInit);
+
         config().contracts.diamondCutData = abi.encode(diamondCut);
 
         ChainCreationParams memory chainCreationParams = ChainCreationParams({
@@ -574,6 +574,62 @@ library DeployL1Utils {
         console.log("StateTransitionManager set in ValidatorTimelock");
     }
 
+    function _setConfig() public {
+        config().contracts.bootloaderHash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.create2FactoryAddr = 0x0000000000000000000000000000000000000000;
+        config().contracts.create2FactorySalt = 0x00000000000000000000000000000000000000000000000000000000000000ff;
+        config().contracts.defaultAAHash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        //config().contracts.diamondCutData = ;
+        config().contracts.diamondInitBatchOverheadL1Gas = 1000000;
+        config().contracts.diamondInitMaxL2GasPerBatch = 80000000;
+        config().contracts.diamondInitMaxPubdataPerBatch = 120000;
+        config().contracts.diamondInitMinimalL2GasPrice = 250000000;
+        config().contracts.diamondInitPriorityTxMaxPubdata = 99000;
+        //config().contracts.diamondInitPubdataPricingMode = 0;
+        config().contracts.genesisBatchCommitment = 0x1000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.genesisRollupLeafIndex = 1;
+        config().contracts.genesisRoot = 0x1000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.governanceMinDelay = 0;
+        config().contracts.governanceSecurityCouncilAddress = 0x0000000000000000000000000000000000000000;
+        config().contracts.latestProtocolVersion = 0;
+        config().contracts.maxNumberOfChains = 100;
+        config().contracts.multicall3Addr = 0x6A7a0cB2a30d8F308ABe72207D6aB996B127eC96;
+        config().contracts.priorityTxMaxGasLimit = 80000000;
+        config().contracts.recursionCircuitsSetVksHash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.recursionLeafLevelVkHash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.recursionNodeLevelVkHash = 0x0000000000000000000000000000000000000000000000000000000000000000;
+        config().contracts.validatorTimelockExecutionDelay = 0;
+        config().deployerAddress = 0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496;
+        config().eraChainId = 9;
+        config().ownerAddress = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+        config().testnetVerifier = true;
+        config().tokens.tokenWethAddress = 0x0000000000000000000000000000000000000000;
+ 
+        addresses().blobVersionedHashRetriever = 0xA4cB26d6933D2c3E76718D30de8547bCDF8dD241;
+        addresses().bridgehub.bridgehubImplementation = 0x1B5Df2B17af1C98999a6f7B627c6C15E8E276abC;
+        addresses().bridgehub.bridgehubProxy = 0x85f1AA3D940A7F0eDe47f1366906AB4B4BfbDd5c;
+        addresses().bridges.erc20BridgeImplementation = 0x0000000000000000000000000000000000000000;
+        addresses().bridges.erc20BridgeProxy = 0x0000000000000000000000000000000000000000;
+        addresses().bridges.sharedBridgeImplementation = 0x0000000000000000000000000000000000000000;
+        addresses().bridges.sharedBridgeProxy = 0x0000000000000000000000000000000000000000;
+        addresses().create2Factory = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
+        addresses().governance = 0x08fdA3d7FeDcd1B7806bF391874B5eDbCFEB80b7;
+        addresses().stateTransition.adminFacet = 0x08eb2028B5D543B6B892eafF0FE494d830dcb6D3;
+        addresses().stateTransition.defaultUpgrade = 0xCB09c3CFA4a34d1DFA29804E6C263723869C448F;
+        addresses().stateTransition.diamondInit = 0xbd4975AA91B7aeF829F955faA2CbC981FD23b8eF;
+        addresses().stateTransition.diamondProxy = 0x0000000000000000000000000000000000000000;
+        addresses().stateTransition.executorFacet = 0x9e589238e4b0D164726301050585028B291279F0;
+        addresses().stateTransition.genesisUpgrade = 0xB0130C3925C866F69c6Ae36D96695893BaCF4210;
+        addresses().stateTransition.gettersFacet = 0x4fC7C2EC7AF3554Eca96ff1709141F4b01FAF1a8;
+        addresses().stateTransition.mailboxFacet = 0xB9455BEDF13CB54FF56c7120B24A1a65763Ccb71;
+        addresses().stateTransition.stateTransitionImplementation = 0xaA825DDe34d3E2f2180A041436C465867B9977D2;
+        addresses().stateTransition.stateTransitionProxy = 0x242302E414C3A24437A058E9Caf920f52285A27C;
+        addresses().stateTransition.verifier = 0xe047deA77d22Fe2c63050815f6f64d85DaF125D5;
+        addresses().transparentProxyAdmin = 0x2e234DAe75C793f67A35089C9d99245E1C58470b;
+        addresses().validatorTimelock = 0xf953f4Fa6EA6B6675f5d50259Ba668F32853Bb83;
+
+    }
+
     function _deployDiamondProxy() public {
         Diamond.FacetCut[] memory facetCuts = new Diamond.FacetCut[](1);
         facetCuts[0] = Diamond.FacetCut({
@@ -582,70 +638,72 @@ library DeployL1Utils {
             isFreezable: false,
             selectors: Utils.getAllSelectors(addresses().stateTransition.adminFacet.code)
         });
-        console.log("bootloaderHash");
-        console.logBytes32(config().contracts.bootloaderHash);
-        console.log("create2FactoryAddr", config().contracts.create2FactoryAddr);
-        console.log("create2FactorySalt");
-        console.logBytes32(config().contracts.create2FactorySalt);
-        console.log("defaultAAHash");
-        console.logBytes32(config().contracts.defaultAAHash);
-        console.log("diamondCutData");
-        console.logBytes(config().contracts.diamondCutData);
-        console.log("diamondInitBatchOverheadL1Gas", config().contracts.diamondInitBatchOverheadL1Gas);
-        console.log("diamondInitMaxL2GasPerBatch", config().contracts.diamondInitMaxL2GasPerBatch);
-        console.log("diamondInitMaxPubdataPerBatch", config().contracts.diamondInitMaxPubdataPerBatch);
-        console.log("diamondInitMinimalL2GasPrice", config().contracts.diamondInitMinimalL2GasPrice);
-        console.log("diamondInitPriorityTxMaxPubdata", config().contracts.diamondInitPriorityTxMaxPubdata);
-        console.log("diamondInitPubdataPricingMode", uint256(config().contracts.diamondInitPubdataPricingMode));
-        console.log("genesisBatchCommitment");
-        console.logBytes32(config().contracts.genesisBatchCommitment);
-        console.log("genesisRollupLeafIndex", config().contracts.genesisRollupLeafIndex);
-        console.log("genesisRoot");
-        console.logBytes32(config().contracts.genesisRoot);
-        console.log("governanceMinDelay", config().contracts.governanceMinDelay);
-        console.log("governanceSecurityCouncilAddress", config().contracts.governanceSecurityCouncilAddress);
-        console.log("latestProtocolVersion", config().contracts.latestProtocolVersion);
-        console.log("maxNumberOfChains", config().contracts.maxNumberOfChains);
-        console.log("multicall3Addr", config().contracts.multicall3Addr);
-        console.log("priorityTxMaxGasLimit", config().contracts.priorityTxMaxGasLimit);
-        console.log("recursionCircuitsSetVksHash");
-        console.logBytes32(config().contracts.recursionCircuitsSetVksHash);
-        console.log("recursionLeafLevelVkHash");
-        console.logBytes32(config().contracts.recursionLeafLevelVkHash);
-        console.log("recursionNodeLevelVkHash");
-        console.logBytes32(config().contracts.recursionNodeLevelVkHash);
-        console.log("validatorTimelockExecutionDelay", config().contracts.validatorTimelockExecutionDelay);
-        console.log("deployerAddress", config().deployerAddress);
-        console.log("eraChainId", config().eraChainId);
-        console.log("ownerAddress", config().ownerAddress);
-        console.log("testnetVerifier", config().testnetVerifier);
-        console.log("tokenWethAddress", config().tokens.tokenWethAddress);
+        // console.log("bootloaderHash");
+        // console.logBytes32(config().contracts.bootloaderHash);
+        // console.log("create2FactoryAddr", config().contracts.create2FactoryAddr);
+        // console.log("create2FactorySalt");
+        // console.logBytes32(config().contracts.create2FactorySalt);
+        // console.log("defaultAAHash");
+        // console.logBytes32(config().contracts.defaultAAHash);
+        // console.log("diamondCutData");
+        // console.logBytes(config().contracts.diamondCutData);
+        // console.log("diamondInitBatchOverheadL1Gas", config().contracts.diamondInitBatchOverheadL1Gas);
+        // console.log("diamondInitMaxL2GasPerBatch", config().contracts.diamondInitMaxL2GasPerBatch);
+        // console.log("diamondInitMaxPubdataPerBatch", config().contracts.diamondInitMaxPubdataPerBatch);
+        // console.log("diamondInitMinimalL2GasPrice", config().contracts.diamondInitMinimalL2GasPrice);
+        // console.log("diamondInitPriorityTxMaxPubdata", config().contracts.diamondInitPriorityTxMaxPubdata);
+        // console.log("diamondInitPubdataPricingMode", uint256(config().contracts.diamondInitPubdataPricingMode));
+        // console.log("genesisBatchCommitment");
+        // console.logBytes32(config().contracts.genesisBatchCommitment);
+        // console.log("genesisRollupLeafIndex", config().contracts.genesisRollupLeafIndex);
+        // console.log("genesisRoot");
+        // console.logBytes32(config().contracts.genesisRoot);
+        // console.log("governanceMinDelay", config().contracts.governanceMinDelay);
+        // console.log("governanceSecurityCouncilAddress", config().contracts.governanceSecurityCouncilAddress);
+        // console.log("latestProtocolVersion", config().contracts.latestProtocolVersion);
+        // console.log("maxNumberOfChains", config().contracts.maxNumberOfChains);
+        // console.log("multicall3Addr", config().contracts.multicall3Addr);
+        // console.log("priorityTxMaxGasLimit", config().contracts.priorityTxMaxGasLimit);
+        // console.log("recursionCircuitsSetVksHash");
+        // console.logBytes32(config().contracts.recursionCircuitsSetVksHash);
+        // console.log("recursionLeafLevelVkHash");
+        // console.logBytes32(config().contracts.recursionLeafLevelVkHash);
+        // console.log("recursionNodeLevelVkHash");
+        // console.logBytes32(config().contracts.recursionNodeLevelVkHash);
+        // console.log("validatorTimelockExecutionDelay", config().contracts.validatorTimelockExecutionDelay);
+        // console.log("deployerAddress", config().deployerAddress);
+        // console.log("eraChainId", config().eraChainId);
+        // console.log("ownerAddress", config().ownerAddress);
+        // console.log("testnetVerifier", config().testnetVerifier);
+        // console.log("tokenWethAddress", config().tokens.tokenWethAddress);
  
-        console.log("blobVersionedHashRetriever", addresses().blobVersionedHashRetriever);
-        console.log("bridgehubImplementation", addresses().bridgehub.bridgehubImplementation);
-        console.log("bridgehubProxy", addresses().bridgehub.bridgehubProxy);
-        console.log("erc20BridgeImplementation", addresses().bridges.erc20BridgeImplementation);
-        console.log("erc20BridgeProxy", addresses().bridges.erc20BridgeProxy);
-        console.log("sharedBridgeImplementation", addresses().bridges.sharedBridgeImplementation);
-        console.log("sharedBridgeProxy", addresses().bridges.sharedBridgeProxy);
-        console.log("create2Factory", addresses().create2Factory);
-        console.log("governance", addresses().governance);
-        console.log("adminFacet", addresses().stateTransition.adminFacet);
-        console.log("defaultUpgrade", addresses().stateTransition.defaultUpgrade);
-        console.log("diamondInit", addresses().stateTransition.diamondInit);
-        console.log("diamondProxy", addresses().stateTransition.diamondProxy);
-        console.log("executorFacet", addresses().stateTransition.executorFacet);
-        console.log("genesisUpgrade", addresses().stateTransition.genesisUpgrade);
-        console.log("gettersFacet", addresses().stateTransition.gettersFacet);
-        console.log("mailboxFacet", addresses().stateTransition.mailboxFacet);
-        console.log("stateTransitionImplementation", addresses().stateTransition.stateTransitionImplementation);
-        console.log("stateTransitionProxy", addresses().stateTransition.stateTransitionProxy);
-        console.log("verifier", addresses().stateTransition.verifier);
-        console.log("transparentProxyAdmin", addresses().transparentProxyAdmin);
-        console.log("validatorTimelock", addresses().validatorTimelock);
+        // console.log("blobVersionedHashRetriever", addresses().blobVersionedHashRetriever);
+        // console.log("bridgehubImplementation", addresses().bridgehub.bridgehubImplementation);
+        // console.log("bridgehubProxy", addresses().bridgehub.bridgehubProxy);
+        // console.log("erc20BridgeImplementation", addresses().bridges.erc20BridgeImplementation);
+        // console.log("erc20BridgeProxy", addresses().bridges.erc20BridgeProxy);
+        // console.log("sharedBridgeImplementation", addresses().bridges.sharedBridgeImplementation);
+        // console.log("sharedBridgeProxy", addresses().bridges.sharedBridgeProxy);
+        // console.log("create2Factory", addresses().create2Factory);
+        // console.log("governance", addresses().governance);
+        // console.log("adminFacet", addresses().stateTransition.adminFacet);
+        // console.log("defaultUpgrade", addresses().stateTransition.defaultUpgrade);
+        // console.log("diamondInit", addresses().stateTransition.diamondInit);
+        // console.log("diamondProxy", addresses().stateTransition.diamondProxy);
+        // console.log("executorFacet", addresses().stateTransition.executorFacet);
+        // console.log("genesisUpgrade", addresses().stateTransition.genesisUpgrade);
+        // console.log("gettersFacet", addresses().stateTransition.gettersFacet);
+        // console.log("mailboxFacet", addresses().stateTransition.mailboxFacet);
+        // console.log("stateTransitionImplementation", addresses().stateTransition.stateTransitionImplementation);
+        // console.log("stateTransitionProxy", addresses().stateTransition.stateTransitionProxy);
+        // console.log("verifier", addresses().stateTransition.verifier);
+        // console.log("transparentProxyAdmin", addresses().transparentProxyAdmin);
+        // console.log("validatorTimelock", addresses().validatorTimelock);
 
         // console.log("Facet", facetCuts[0].facet);
         // console.log("Admin", addresses().stateTransition.adminFacet);
+
+        
         Diamond.DiamondCutData memory diamondCut = Diamond.DiamondCutData({
             facetCuts: facetCuts,
             initAddress: address(0),
