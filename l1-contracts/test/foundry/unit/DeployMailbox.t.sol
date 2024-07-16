@@ -8,7 +8,6 @@ import {MockExecutorFacet} from "contracts/dev-contracts/test/MockExecutor.sol";
 import {Forwarder} from "contracts/dev-contracts/Forwarder.sol";
 
 contract MailboxTest is Test {
-
     struct L2TransactionRequestDirect {
         uint256 chainId;
         uint256 mintValue;
@@ -43,7 +42,6 @@ contract MailboxTest is Test {
         //     factoryDeps,
         //     refundRecipient,
         // });
-
         // vm.expectRevert();
         // bridgehub.requestL2TransactionDirect(requestCallData);
     }
@@ -51,7 +49,6 @@ contract MailboxTest is Test {
     function test_invalidProof() public {
         // const invalidProof = [...MERKLE_PROOF];
         // string memory invalidProof[0] = "0x72abee45b59e344af8a6e520241c4744aff26ed411f4c4b00f8af09adada43bb";
-
         // vm.expectRevert("Mailbox: finalizeEthWithdrawal only available for Era on mailbox")
         // mailbox.finalizeEthWithdrawal(BLOCK_NUMBER, MESSAGE_INDEX, TX_NUMBER_IN_BLOCK, MESSAGE, invalidProof)
     }
