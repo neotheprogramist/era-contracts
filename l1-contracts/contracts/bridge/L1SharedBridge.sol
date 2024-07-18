@@ -22,6 +22,7 @@ import {ETH_TOKEN_ADDRESS, TWO_BRIDGES_MAGIC_VALUE} from "../common/Config.sol";
 import {IBridgehub, L2TransactionRequestTwoBridgesInner, L2TransactionRequestDirect} from "../bridgehub/IBridgehub.sol";
 import {IGetters} from "../state-transition/chain-interfaces/IGetters.sol";
 import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "../common/L2ContractAddresses.sol";
+import {console2 as console} from "forge-std/Script.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
@@ -548,7 +549,7 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
     ) internal nonReentrant whenNotPaused returns (address l1Receiver, address l1Token, uint256 amount) {
         require(!isWithdrawalFinalized[_chainId][_l2BatchNumber][_l2MessageIndex], "Withdrawal is already finalized");
         isWithdrawalFinalized[_chainId][_l2BatchNumber][_l2MessageIndex] = true;
-
+        console.log("1");
         // Handling special case for withdrawal from zkSync Era initiated before Shared Bridge.
         if (_isEraLegacyEthWithdrawal(_chainId, _l2BatchNumber)) {
             // Checks that the withdrawal wasn't finalized already.
@@ -558,20 +559,21 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
             );
             require(!alreadyFinalized, "Withdrawal is already finalized 2");
         }
-
+        console.log("2");
         MessageParams memory messageParams = MessageParams({
             l2BatchNumber: _l2BatchNumber,
             l2MessageIndex: _l2MessageIndex,
             l2TxNumberInBatch: _l2TxNumberInBatch
         });
+        console.log("3");
         (l1Receiver, l1Token, amount) = _checkWithdrawal(_chainId, messageParams, _message, _merkleProof);
-
+        
         if (!hyperbridgingEnabled[_chainId]) {
             // Check that the chain has sufficient balance
             require(chainBalance[_chainId][l1Token] >= amount, "ShB not enough funds 2"); // not enough funds
             chainBalance[_chainId][l1Token] -= amount;
         }
-
+        console.log("4");
         if (l1Token == ETH_TOKEN_ADDRESS) {
             bool callSuccess;
             // Low-level assembly call, to avoid any memory copying (save gas)
@@ -593,7 +595,9 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
         bytes calldata _message,
         bytes32[] calldata _merkleProof
     ) internal view returns (address l1Receiver, address l1Token, uint256 amount) {
+        console.log("check 1");
         (l1Receiver, l1Token, amount) = _parseL2WithdrawalMessage(_chainId, _message);
+        console.log("check 2");
         L2Message memory l2ToL1Message;
         {
             bool baseTokenWithdrawal = (l1Token == BRIDGE_HUB.baseToken(_chainId));
@@ -605,7 +609,7 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
                 data: _message
             });
         }
-
+        console.log("check 3");
         bool success = BRIDGE_HUB.proveL2MessageInclusion({
             _chainId: _chainId,
             _batchNumber: _messageParams.l2BatchNumber,
@@ -613,6 +617,7 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
             _message: l2ToL1Message,
             _proof: _merkleProof
         });
+        console.log("check 4");
         require(success, "ShB withd w proof"); // withdrawal wrong proof
     }
 
@@ -630,14 +635,19 @@ contract L1SharedBridge is IL1SharedBridge, ReentrancyGuard, Ownable2StepUpgrade
         // = 4 + 20 + 32 + 32 + _additionalData.length >= 68 (bytes).
 
         // So the data is expected to be at least 56 bytes long.
+        console.log("parse 1");
         require(_l2ToL1message.length >= 56, "ShB wrong msg len"); // wrong message length
-
+        console.log("parse 2");
         (uint32 functionSignature, uint256 offset) = UnsafeBytes.readUint32(_l2ToL1message, 0);
+        console.log("parse 3");
         if (bytes4(functionSignature) == IMailbox.finalizeEthWithdrawal.selector) {
+            console.log("parse 4");
             // this message is a base token withdrawal
             (l1Receiver, offset) = UnsafeBytes.readAddress(_l2ToL1message, offset);
             (amount, offset) = UnsafeBytes.readUint256(_l2ToL1message, offset);
+            console.log("parse 5");
             l1Token = BRIDGE_HUB.baseToken(_chainId);
+            console.log("parse 6");
         } else if (bytes4(functionSignature) == IL1ERC20Bridge.finalizeWithdrawal.selector) {
             // We use the IL1ERC20Bridge for backward compatibility with old withdrawals.
 

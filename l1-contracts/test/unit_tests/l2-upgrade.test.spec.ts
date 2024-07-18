@@ -146,12 +146,13 @@ describe.only("L2 upgrade test", function () {
       priorityOperationsHash: EMPTY_STRING_KECCAK,
       numberOfLayer1Txs: "0x0000000000000000000000000000000000000000000000000000000000000000",
     });
-
+    console.log("Protocol", initialProtocolVersion);
+    console.log("Batch info", storedBatch1InfoChainIdUpgrade);
+    console.log("Batch2 info", batch2Info);
     const commitReceipt = await (
       await proxyExecutor.commitBatches(storedBatch1InfoChainIdUpgrade, [batch2Info])
     ).wait();
     const commitment = commitReceipt.events[0].args.commitment;
-
     expect(await proxyGetters.getProtocolVersion()).to.equal(initialProtocolVersion);
     expect(await proxyGetters.getL2SystemContractsUpgradeTxHash()).to.equal(ethers.constants.HashZero);
 

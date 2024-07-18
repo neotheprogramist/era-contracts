@@ -9,7 +9,13 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {L1SharedBridge} from "contracts/bridge/L1SharedBridge.sol";
 import {IBridgehub} from "contracts/bridgehub/IBridgehub.sol";
 import {TestnetERC20Token} from "contracts/dev-contracts/TestnetERC20Token.sol";
-
+import {ETH_TOKEN_ADDRESS} from "contracts/common/Config.sol";
+import {L2Message, TxStatus} from "contracts/common/Messaging.sol";
+import {IMailbox} from "contracts/state-transition/chain-interfaces/IMailbox.sol";
+import {IL1ERC20Bridge} from "contracts/bridge/interfaces/IL1ERC20Bridge.sol";
+import {L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR} from "contracts/common/L2ContractAddresses.sol";
+import {IGetters} from "contracts/state-transition/chain-interfaces/IGetters.sol";
+import {MailboxFacet} from "contracts/state-transition/chain-deps/facets/Mailbox.sol";
 contract L1SharedBridgeTest is Test {
     using stdStorage for StdStorage;
 
@@ -58,6 +64,7 @@ contract L1SharedBridgeTest is Test {
         uint256 amount
     );
 
+    MailboxFacet mailbox;
     L1SharedBridge sharedBridgeImpl;
     L1SharedBridge sharedBridge;
     address bridgehubAddress;
@@ -88,6 +95,15 @@ contract L1SharedBridgeTest is Test {
 
     uint256 isWithdrawalFinalizedStorageLocation = uint256(8 - 1 + (1 + 49) + 0 + (1 + 49) + 50 + 1 + 50);
 
+    function _setSharedBridgeChainBalance(uint256 _chainId, address _token, uint256 _value) internal {
+        stdstore
+            .target(address(sharedBridge))
+            .sig(sharedBridge.chainBalance.selector)
+            .with_key(_chainId)
+            .with_key(_token)
+            .checked_write(_value);
+    }
+
     function setUp() public {
         owner = makeAddr("owner");
         admin = makeAddr("admin");
@@ -111,7 +127,7 @@ contract L1SharedBridgeTest is Test {
         eraDiamondProxy = makeAddr("eraDiamondProxy");
         eraErc20BridgeAddress = makeAddr("eraErc20BridgeAddress");
         functionSignature = "0x6c0960f9";
-
+        mailbox = new MailboxFacet(chainId);
         token = new TestnetERC20Token("TestnetERC20Token", "TET", 18);
         sharedBridgeImpl = new L1SharedBridge({
             _l1WethAddress: l1WethAddress,
@@ -139,21 +155,50 @@ contract L1SharedBridgeTest is Test {
         sharedBridge.initializeChainGovernance(eraChainId, l2SharedBridge);
     }
 
-    function _setSharedBridgeDepositHappened(uint256 _chainId, bytes32 _txHash, bytes32 _txDataHash) internal {
-        stdstore
-            .target(address(sharedBridge))
-            .sig(sharedBridge.depositHappened.selector)
-            .with_key(_chainId)
-            .with_key(_txHash)
-            .checked_write(_txDataHash);
+    function test_withdrawalWithWrongBatchNumber() public {
+        token.mint(address(sharedBridge), amount);
+
+        _setSharedBridgeChainBalance(chainId, address(token), amount);
+        vm.mockCall(
+            bridgehubAddress,
+            abi.encodeWithSelector(IBridgehub.baseToken.selector),
+            abi.encode(address(token))
+        );
+
+        bytes memory message = abi.encodePacked(
+            IL1ERC20Bridge.finalizeWithdrawal.selector,
+            alice,
+            address(token),
+            amount
+        );
+        L2Message memory l2ToL1Message = L2Message({
+            txNumberInBatch: l2TxNumberInBatch,
+            sender: L2_BASE_TOKEN_SYSTEM_CONTRACT_ADDR,
+            data: message
+        });
+
+        sharedBridge.finalizeWithdrawal(chainId, 10, l2MessageIndex, 0, message, merkleProof);
+        vm.mockCall(
+            bridgehubAddress,
+            // solhint-disable-next-line func-named-parameters
+            abi.encodeWithSelector(
+                IBridgehub.proveL2MessageInclusion.selector,
+                chainId,
+                0,
+                l2MessageIndex,
+                l2ToL1Message,
+                merkleProof
+            ),
+            abi.encode(true)
+        );
     }
 
-    function _setSharedBridgeChainBalance(uint256 _chainId, address _token, uint256 _value) internal {
-        stdstore
-            .target(address(sharedBridge))
-            .sig(sharedBridge.chainBalance.selector)
-            .with_key(_chainId)
-            .with_key(_token)
-            .checked_write(_value);
+    function test_withdrawalWithWrongProofLength() public {
+        bytes memory message = abi.encodePacked(IMailbox.finalizeEthWithdrawal.selector, alice, amount);
+        bytes32[] memory hashZero = new bytes32[](1);
+        hashZero[0] = bytes32("");
+
+        //vm.expectRevert(abi.encodePacked("xc"));
+        sharedBridge.finalizeWithdrawal(chainId, 0, 0, 0, message, hashZero);
     }
 }

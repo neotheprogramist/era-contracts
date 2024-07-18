@@ -17,6 +17,7 @@ import {AddressAliasHelper} from "../../../vendor/AddressAliasHelper.sol";
 import {ZkSyncHyperchainBase} from "./ZkSyncHyperchainBase.sol";
 import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA, ETH_TOKEN_ADDRESS, L1_GAS_PER_PUBDATA_BYTE, L2_L1_LOGS_TREE_DEFAULT_LEAF_HASH, PRIORITY_OPERATION_L2_TX_TYPE, PRIORITY_EXPIRATION, MAX_NEW_FACTORY_DEPS} from "../../../common/Config.sol";
 import {L2_BOOTLOADER_ADDRESS, L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR} from "../../../common/L2ContractAddresses.sol";
+import {console2 as console} from "forge-std/Script.sol";
 
 import {IL1SharedBridge} from "../../../bridge/interfaces/IL1SharedBridge.sol";
 
@@ -63,6 +64,7 @@ contract MailboxFacet is ZkSyncHyperchainBase, IMailbox {
         L2Message memory _message,
         bytes32[] calldata _proof
     ) public view returns (bool) {
+        console.log("xd");
         return _proveL2LogInclusion(_batchNumber, _index, _L2MessageToLog(_message), _proof);
     }
 
@@ -113,6 +115,7 @@ contract MailboxFacet is ZkSyncHyperchainBase, IMailbox {
         L2Log memory _log,
         bytes32[] calldata _proof
     ) internal view returns (bool) {
+        console.log("prove");
         require(_batchNumber <= s.totalBatchesExecuted, "xx");
 
         bytes32 hashedLog = keccak256(
