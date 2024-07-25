@@ -218,7 +218,7 @@ library Utils {
         selectors[4] = GettersFacet.getTotalBlocksVerified.selector;
         selectors[5] = GettersFacet.getTotalBlocksExecuted.selector;
         selectors[6] = GettersFacet.getTotalPriorityTxs.selector;
-        selectors[7] = GettersFacet.getFirstUnprocessedPriorityTx.selector;
+        selectors[7] = GettersFacet.getProtocolVersion.selector;
         selectors[8] = GettersFacet.getPriorityQueueSize.selector;
         selectors[9] = GettersFacet.priorityQueueFrontOperation.selector;
         selectors[10] = GettersFacet.isValidator.selector;
@@ -235,7 +235,7 @@ library Utils {
         selectors[21] = GettersFacet.facetAddresses.selector;
         selectors[22] = GettersFacet.facetAddress.selector;
         selectors[23] = GettersFacet.isFunctionFreezable.selector;
-        selectors[24] = GettersFacet.isFacetFreezable.selector;
+        selectors[24] = GettersFacet.getSemverProtocolVersion.selector;
         selectors[25] = GettersFacet.getTotalBatchesCommitted.selector;
         selectors[26] = GettersFacet.getTotalBatchesVerified.selector;
         selectors[27] = GettersFacet.getTotalBatchesExecuted.selector;
