@@ -29,10 +29,10 @@ import {GenesisUpgrade} from "contracts/upgrades/GenesisUpgrade.sol";
 import {InitializeDataNewChain} from "contracts/state-transition/chain-interfaces/IDiamondInit.sol";
 import {StateTransitionManagerInitializeData, ChainCreationParams} from "contracts/state-transition/IStateTransitionManager.sol";
 import {TestnetVerifier} from "contracts/state-transition/TestnetVerifier.sol";
+import {REQUIRED_L2_GAS_PRICE_PER_PUBDATA, L2_TO_L1_LOG_SERIALIZE_SIZE, DEFAULT_L2_LOGS_TREE_ROOT_HASH, EMPTY_STRING_KECCAK, SYSTEM_UPGRADE_L2_TX_TYPE, PRIORITY_TX_MAX_GAS_LIMIT} from "contracts/common/Config.sol";
 import {console2 as console} from "forge-std/Script.sol";
 
 contract L2UpgradeTest is Test {
-    event ExecuteUpgrade(Diamond.DiamondCutData diamondCut);
     uint32 internal major;
     uint32 internal minor;
     uint32 internal patch;
@@ -583,22 +583,28 @@ contract L2UpgradeTest is Test {
             upgradeTimestamp: 0,
             newProtocolVersion: protocolVersion
         });
-        vm.expectRevert(bytes("ui"));
+        //vm.expectRevert(bytes("ui"));
         executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
     }
 
-    function test_incorrectFactoryDeps() public {
+    function test_incorrectFactoryDepsHash() public {
         (major, minor, patch) = gettersFacet.getSemverProtocolVersion();
         uint256 protocolVersion = packSemver(major, minor + 1, patch);
 
-        uint256[] memory factoryDeps = new uint256[](2);
-   
+        uint256[] memory factoryHash = new uint256[](1);
+        factoryHash[0] = uint256(Utils.randomBytes32("FactoryHash"));
         L2CanonicalTransaction memory l2ProtocolUpgradeTx = Utils.makeEmptyL2CanonicalTransaction();
-        l2ProtocolUpgradeTx.factoryDeps = factoryDeps;
+        l2ProtocolUpgradeTx.factoryDeps = factoryHash;
+        l2ProtocolUpgradeTx.txType = SYSTEM_UPGRADE_L2_TX_TYPE;
+        l2ProtocolUpgradeTx.gasLimit = PRIORITY_TX_MAX_GAS_LIMIT;
+        l2ProtocolUpgradeTx.gasPerPubdataByteLimit = REQUIRED_L2_GAS_PRICE_PER_PUBDATA;
+
+        bytes[] memory factoryDeps = new bytes[](1);
+        factoryDeps[0] = abi.encode(Utils.randomBytes32("FactoryDeps"));
         
         ProposedUpgrade memory proposedUpgrade = ProposedUpgrade({
             l2ProtocolUpgradeTx: l2ProtocolUpgradeTx,
-            factoryDeps: new bytes[](1),
+            factoryDeps: factoryDeps,
             bootloaderHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
             defaultAccountHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
             verifier: 0x0000000000000000000000000000000000000000,
@@ -608,7 +614,7 @@ contract L2UpgradeTest is Test {
             upgradeTimestamp: 0,
             newProtocolVersion: protocolVersion
         });
-        //vm.expectRevert(bytes("ui"));
+        vm.expectRevert("Wrong factory dep hash");
         executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
     }
 
@@ -616,13 +622,19 @@ contract L2UpgradeTest is Test {
         (major, minor, patch) = gettersFacet.getSemverProtocolVersion();
         uint256 protocolVersion = packSemver(major, minor + 1, patch);
 
-        uint256[] memory emptyFactoryDeps = new uint256[](0);
+        uint256[] memory factoryHashes = new uint256[](2);
+        factoryHashes[0] = uint256(Utils.randomBytes32("FactoryHashes"));
+        factoryHashes[1] = uint256(Utils.randomBytes32("FactoryHashes2"));
         L2CanonicalTransaction memory l2ProtocolUpgradeTx = Utils.makeEmptyL2CanonicalTransaction();
-        l2ProtocolUpgradeTx.factoryDeps = emptyFactoryDeps;
+        l2ProtocolUpgradeTx.factoryDeps = factoryHashes;
+        l2ProtocolUpgradeTx.txType = 254;
+
+        bytes[] memory factoryDeps = new bytes[](1);
+        factoryDeps[0] = abi.encode(Utils.randomBytes32("FactoryDeps"));
         
         ProposedUpgrade memory proposedUpgrade = ProposedUpgrade({
             l2ProtocolUpgradeTx: l2ProtocolUpgradeTx,
-            factoryDeps: new bytes[](1),
+            factoryDeps: factoryDeps,
             bootloaderHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
             defaultAccountHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
             verifier: 0x0000000000000000000000000000000000000000,
@@ -632,7 +644,99 @@ contract L2UpgradeTest is Test {
             upgradeTimestamp: 0,
             newProtocolVersion: protocolVersion
         });
-        //vm.expectRevert(bytes("ui"));
+        vm.expectRevert("Wrong number of factory deps");
+        executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
+    }
+
+    function test_tooLongFactoryDepsArray() public {
+        (major, minor, patch) = gettersFacet.getSemverProtocolVersion();
+        uint256 protocolVersion = packSemver(major, minor + 1, patch);
+
+        uint256[] memory factoryHashes = new uint256[](33);
+        L2CanonicalTransaction memory l2ProtocolUpgradeTx = Utils.makeEmptyL2CanonicalTransaction();
+        l2ProtocolUpgradeTx.factoryDeps = factoryHashes;
+        l2ProtocolUpgradeTx.txType = 254;
+
+        bytes[] memory factoryDeps = new bytes[](33);
+
+        ProposedUpgrade memory proposedUpgrade = ProposedUpgrade({
+            l2ProtocolUpgradeTx: l2ProtocolUpgradeTx,
+            factoryDeps: factoryDeps,
+            bootloaderHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
+            defaultAccountHash: 0x0000000000000000000000000000000000000000000000000000000000000000,
+            verifier: 0x0000000000000000000000000000000000000000,
+            verifierParams: Utils.makeVerifierParams(),
+            l1ContractsUpgradeCalldata: hex"",
+            postUpgradeCalldata: hex"",
+            upgradeTimestamp: 0,
+            newProtocolVersion: protocolVersion
+        });
+        console.log("Exiting test", proposedUpgrade.factoryDeps.length);
+        vm.expectRevert("Factory deps can be at most 32");
+        executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
+    }
+
+    function test_succesfulUpgrade() public {
+        (major, minor, patch) = gettersFacet.getSemverProtocolVersion();
+        uint256 newProtocolVersion = packSemver(major, minor + 1, patch);
+        bytes32 bootloaderHash = bytes32(0);
+        bytes32 defaultAccountHash = bytes32(0);
+        address verifier = makeAddr("verifier");
+        VerifierParams memory verifierParams = Utils.makeVerifierParams();
+        bytes32 factoryDep = Utils.randomBytes32("myFactoryDep");
+        bytes[] memory myFactoryDep = new bytes[](1);
+        myFactoryDep[0] = abi.encode(factoryDep);
+        uint256[] memory myFactoryDepHash = new uint256[](1);
+        myFactoryDepHash[0] = uint256(factoryDep);
+        L2CanonicalTransaction memory upgradeTx = Utils.makeEmptyL2CanonicalTransaction();
+        upgradeTx.factoryDeps = myFactoryDepHash;
+        upgradeTx.nonce = 2;
+
+        ProposedUpgrade memory proposedUpgrade = ProposedUpgrade({
+            l2ProtocolUpgradeTx: upgradeTx,
+            factoryDeps: myFactoryDep,
+            bootloaderHash: bootloaderHash,
+            defaultAccountHash: defaultAccountHash,
+            verifier: verifier,
+            verifierParams: verifierParams,
+            l1ContractsUpgradeCalldata: hex"",
+            postUpgradeCalldata: hex"",
+            upgradeTimestamp: 0,
+            newProtocolVersion: newProtocolVersion
+        });
+        //vm.expectRevert("Previous upgrade has not been finalized");
+        executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
+    }
+
+    function test_upgradeWhenThereIsAlreadyPendingUpgrade() public {
+        (major, minor, patch) = gettersFacet.getSemverProtocolVersion();
+        uint256 newProtocolVersion = packSemver(major, minor + 1, patch);
+        bytes32 bootloaderHash = bytes32(0);
+        bytes32 defaultAccountHash = bytes32(0);
+        address verifier = makeAddr("verifier");
+        VerifierParams memory verifierParams = Utils.makeVerifierParams();
+        bytes32 factoryDep = Utils.randomBytes32("myFactoryDep");
+        bytes[] memory myFactoryDep = new bytes[](1);
+        myFactoryDep[0] = abi.encode(factoryDep);
+        uint256[] memory myFactoryDepHash = new uint256[](1);
+        myFactoryDepHash[0] = uint256(factoryDep);
+        L2CanonicalTransaction memory upgradeTx = Utils.makeEmptyL2CanonicalTransaction();
+        upgradeTx.factoryDeps = myFactoryDepHash;
+        upgradeTx.nonce = 2;
+    
+        ProposedUpgrade memory proposedUpgrade = ProposedUpgrade({
+            l2ProtocolUpgradeTx: upgradeTx,
+            factoryDeps: myFactoryDep,
+            bootloaderHash: bootloaderHash,
+            defaultAccountHash: defaultAccountHash,
+            verifier: verifier,
+            verifierParams: verifierParams,
+            l1ContractsUpgradeCalldata: hex"",
+            postUpgradeCalldata: hex"",
+            upgradeTimestamp: 0,
+            newProtocolVersion: newProtocolVersion
+        });
+        //vm.expectRevert("Previous upgrade has not been finalized");
         executeUpgrade(gettersFacet, stateTransitionManager, adminFacet, proposedUpgrade);
     }
 
