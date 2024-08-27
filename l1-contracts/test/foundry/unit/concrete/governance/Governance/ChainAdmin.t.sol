@@ -14,7 +14,7 @@ import {Utils} from "test/foundry/unit/concrete/Utils/Utils.sol";
 
 contract ChainAdminTest is Test {
     ChainAdmin internal chainAdmin;
-    AccessControlRestriction internal restriction; 
+    AccessControlRestriction internal restriction;
     GettersFacet internal gettersFacet;
 
     address internal owner;
@@ -24,7 +24,7 @@ contract ChainAdminTest is Test {
 
     function setUp() public {
         owner = makeAddr("random address");
- 
+
         restriction = new AccessControlRestriction(0, owner);
         address[] memory restrictions = new address[](1);
         restrictions[0] = address(restriction);
@@ -70,7 +70,6 @@ contract ChainAdminTest is Test {
         vm.expectEmit();
         emit IChainAdmin.RestrictionRemoved(owner);
         chainAdmin.removeRestriction(owner);
-
     }
 
     function test_removeRestrictionRevert() public {
@@ -78,7 +77,7 @@ contract ChainAdminTest is Test {
         vm.startPrank(address(chainAdmin));
         chainAdmin.addRestriction(owner);
         chainAdmin.removeRestriction(owner);
-       
+
         vm.expectRevert(abi.encodeWithSelector(RestrictionWasNotPresent.selector, owner));
         chainAdmin.removeRestriction(owner);
     }
