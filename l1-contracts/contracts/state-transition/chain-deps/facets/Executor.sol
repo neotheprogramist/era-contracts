@@ -17,6 +17,7 @@ import {IChainTypeManager} from "../../IChainTypeManager.sol";
 import {PriorityTree, PriorityOpsBatchInfo} from "../../libraries/PriorityTree.sol";
 import {IL1DAValidator, L1DAValidatorOutput} from "../../chain-interfaces/IL1DAValidator.sol";
 import {MissingSystemLogs, BatchNumberMismatch, TimeNotReached, ValueMismatch, HashMismatch, NonIncreasingTimestamp, TimestampError, InvalidLogSender, TxHashMismatch, UnexpectedSystemLog, LogAlreadyProcessed, InvalidProtocolVersion, CanOnlyProcessOneBatch, BatchHashMismatch, UpgradeBatchNumberIsNotZero, NonSequentialBatch, CantExecuteUnprovenBatches, SystemLogsSizeTooBig, InvalidNumberOfBlobs, VerifiedBatchesExceedsCommittedBatches, InvalidProof, RevertedBatchNotAfterNewLastBatch, CantRevertExecutedBatch, L2TimestampTooBig, PriorityOperationsRollingHashMismatch} from "../../../common/L1ContractErrors.sol";
+import {MissmatchL2DAValidator, InvalidEightBit, MissmatchNumberOfLayer1Txs, PriorityOpsDataLeftPathLengthIsZero, PriorityOpsDataItemHashesLengthIsZero} from "../../L1StateTransitionErrors.sol";
 
 // While formally the following import is not used, it is needed to inherit documentation from it
 import {IZkSyncHyperchainBase} from "../../chain-interfaces/IZkSyncHyperchainBase.sol";
@@ -198,7 +199,9 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
                 if (logSender != L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR) {
                     revert InvalidLogSender(logSender, logKey);
                 }
-                require(s.l2DAValidator == address(uint160(uint256(logValue))), "lo");
+                if (s.l2DAValidator != address(uint160(uint256(logValue)))) {
+                    revert MissmatchL2DAValidator();
+                }
             } else if (logKey == uint256(SystemLogKey.L2_DA_VALIDATOR_OUTPUT_HASH_KEY)) {
                 if (logSender != L2_TO_L1_MESSENGER_SYSTEM_CONTRACT_ADDR) {
                     revert InvalidLogSender(logSender, logKey);
@@ -414,7 +417,9 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
         PriorityOpsBatchInfo calldata _priorityOpsData,
         uint256 _executedBatchIdx
     ) internal {
-        require(_priorityOpsData.itemHashes.length == _storedBatch.numberOfLayer1Txs, "zxc");
+        if (_priorityOpsData.itemHashes.length != _storedBatch.numberOfLayer1Txs) {
+            revert MissmatchNumberOfLayer1Txs();
+        }
         bytes32 priorityOperationsHash = _rollingHash(_priorityOpsData.itemHashes);
         _checkBatchData(_storedBatch, _executedBatchIdx, priorityOperationsHash);
         s.priorityTree.processBatch(_priorityOpsData);
@@ -443,15 +448,23 @@ contract ExecutorFacet is ZkSyncHyperchainBase, IExecutor {
         PriorityOpsBatchInfo[] calldata _priorityOpsData
     ) internal chainOnCurrentBridgehub {
         uint256 nBatches = _batchesData.length;
-        require(_batchesData.length == _priorityOpsData.length, "bp");
+        if (_batchesData.length != _priorityOpsData.length) {
+            revert InvalidBatchesDataLength();
+        }
 
         for (uint256 i = 0; i < nBatches; i = i.uncheckedInc()) {
             if (s.priorityTree.startIndex <= s.priorityQueue.getFirstUnprocessedPriorityTx()) {
                 _executeOneBatch(_batchesData[i], _priorityOpsData[i], i);
             } else {
-                require(_priorityOpsData[i].leftPath.length == 0, "le");
-                require(_priorityOpsData[i].rightPath.length == 0, "re");
-                require(_priorityOpsData[i].itemHashes.length == 0, "ih");
+                if (_priorityOpsData[i].leftPath.length != 0) {
+                    revert PriorityOpsDataLeftPathLengthIsNotZero();
+                }
+                if (_priorityOpsData[i].rightPath.length != 0) {
+                    revert PriorityOpsDataRightPathLengthIsNotZero();
+                }
+                if (_priorityOpsData[i].itemHashes.length != 0) {
+                    revert PriorityOpsDataItemHashesLengthIsNotZero();
+                }
                 _executeOneBatch(_batchesData[i], i);
             }
             emit BlockExecution(_batchesData[i].batchNumber, _batchesData[i].batchHash, _batchesData[i].commitment);
