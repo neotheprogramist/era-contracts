@@ -32,7 +32,9 @@ contract DummyExecutor is IExecutor {
 
     /// @notice Modifier that only allows the owner to call certain functions
     modifier onlyOwner() {
-        require(msg.sender == owner);
+        if (msg.sender != owner) {
+            revert OnlyOwner();
+        }
         _;
     }
 
