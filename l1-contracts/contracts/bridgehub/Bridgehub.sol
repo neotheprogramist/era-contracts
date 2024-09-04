@@ -24,7 +24,7 @@ import {IMessageRoot} from "./IMessageRoot.sol";
 import {ICTMDeploymentTracker} from "./ICTMDeploymentTracker.sol";
 import {L2CanonicalTransaction} from "../common/Messaging.sol";
 import {AssetHandlerNotRegistered, HyperchainLimitReached, Unauthorized, CTMAlreadyRegistered, CTMNotRegistered, ZeroChainId, ChainIdTooBig, SharedBridgeNotSet, BridgeHubAlreadyRegistered, AddressTooLow, MsgValueMismatch, WrongMagicValue, ZeroAddress} from "../common/L1ContractErrors.sol";
-import {NotChainStm, NotL1, NotRelayedSenser, NotAssetRouter, TokenNotSet, ChainNotLegacy, ChainAlreadyMigrated, ChainNotLegacy2, AssetIdAlreadyRegistered, NotStmDeployer, StmNotRegistered, ChainIdMustNotMatchCurrentChainId, AssetIdNotRegistered, ChainIdNotRegistered, SecondBridgeAddressTooLow, NotInSyncLayerMode, SLNotWhitelisted, AssetInfo1, NotCurrentSL, HyperchainNotRegistered, IncorrectSender, AssetInfo2, AlreadyCurrentSL, OnlyOwner} from "./L1BridgehubErrors.sol";
+import {NotChainStm, NotL1, NotRelayedSenser, NotAssetRouter, TokenNotSet, ChainNotLegacy, ChainAlreadyMigrated, ChainNotLegacy2, AssetIdAlreadyRegistered, NotStmDeployer, StmNotRegistered, ChainIdMustNotMatchCurrentChainId, AssetIdNotRegistered, ChainIdNotRegistered, SecondBridgeAddressTooLow, NotInSyncLayerMode, SLNotWhitelisted, AssetInfo1, NotCurrentSL, HyperchainNotRegistered, IncorrectSender, AssetInfo2, AlreadyCurrentSL} from "./L1BridgehubErrors.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
