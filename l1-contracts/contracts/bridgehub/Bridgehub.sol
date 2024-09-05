@@ -24,6 +24,7 @@ import {IMessageRoot} from "./IMessageRoot.sol";
 import {ICTMDeploymentTracker} from "./ICTMDeploymentTracker.sol";
 import {L2CanonicalTransaction} from "../common/Messaging.sol";
 import {AssetHandlerNotRegistered, HyperchainLimitReached, Unauthorized, CTMAlreadyRegistered, CTMNotRegistered, ZeroChainId, ChainIdTooBig, SharedBridgeNotSet, BridgeHubAlreadyRegistered, AddressTooLow, MsgValueMismatch, WrongMagicValue, ZeroAddress} from "../common/L1ContractErrors.sol";
+import {NotChainStm, NotL1, NotRelayedSenser, NotAssetRouter, TokenNotSet, ChainNotLegacy, ChainAlreadyMigrated, ChainNotLegacy2, AssetIdAlreadyRegistered, NotStmDeployer, StmNotRegistered, ChainIdMustNotMatchCurrentChainId, AssetIdNotRegistered, ChainIdNotRegistered, SecondBridgeAddressTooLow, NotInSyncLayerMode, SLNotWhitelisted, AssetInfo1, NotCurrentSL, HyperchainNotRegistered, IncorrectSender, AssetInfo2, AlreadyCurrentSL} from "./L1BridgehubErrors.sol";
 
 /// @author Matter Labs
 /// @custom:security-contact security@matterlabs.dev
@@ -108,23 +109,31 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
     }
 
     modifier onlyChainCTM(uint256 _chainId) {
-        require(msg.sender == chainTypeManager[_chainId], "BH: not chain CTM");
+        if (msg.sender != chainTypeManager[_chainId]) {
+            revert NotChainStm();
+        }
         _;
     }
 
     modifier onlyL1() {
-        require(L1_CHAIN_ID == block.chainid, "BH: not L1");
+        if (L1_CHAIN_ID != block.chainid) {
+            revert NotL1();
+        }
         _;
     }
 
     modifier onlySettlementLayerRelayedSender() {
         /// There is no sender for the wrapping, we use a virtual address.
-        require(msg.sender == SETTLEMENT_LAYER_RELAY_SENDER, "BH: not relayed senser");
+        if (msg.sender != SETTLEMENT_LAYER_RELAY_SENDER) {
+            revert NotRelayedSenser();
+        }
         _;
     }
 
     modifier onlyAssetRouter() {
-        require(msg.sender == address(sharedBridge), "BH: not asset router");
+        if (msg.sender != address(sharedBridge)) {
+            revert NotAssetRouter();
+        }
         _;
     }
 
@@ -209,7 +218,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
             return;
         }
         address token = __DEPRECATED_baseToken[_chainId];
-        require(token != address(0), "BH: token not set");
+        if (token == address(0)) {
+            revert TokenNotSet();
+        }
         baseTokenAssetId[_chainId] = DataEncoding.encodeNTVAssetId(block.chainid, token);
     }
 
@@ -217,11 +228,17 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
     /// @param _chainId The chainId of the legacy chain we are migrating.
     function setLegacyChainAddress(uint256 _chainId) external {
         address ctm = chainTypeManager[_chainId];
-        require(ctm != address(0), "BH: chain not legacy");
-        require(!hyperchainMap.contains(_chainId), "BH: chain already migrated");
+        if (ctm == address(0)) {
+            revert ChainNotLegacy();
+        }
+        if (hyperchainMap.contains(_chainId)) {
+            revert ChainAlreadyMigrated();
+        }
         /// Note we have to do this before CTM is upgraded.
         address chainAddress = IChainTypeManager(ctm).getHyperchainLegacy(_chainId);
-        require(chainAddress != address(0), "BH: chain not legacy 2");
+        if (chainAddress == address(0)) {
+            revert ChainNotLegacy2();
+        }
         _registerNewHyperchain(_chainId, chainAddress);
     }
 
@@ -259,7 +276,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
     /// @notice asset id can represent any token contract with the appropriate interface/functionality
     /// @param _baseTokenAssetId asset id of base token to be registered
     function addTokenAssetId(bytes32 _baseTokenAssetId) external onlyOwner {
-        require(!assetIdIsRegistered[_baseTokenAssetId], "BH: asset id already registered");
+        if (assetIdIsRegistered[_baseTokenAssetId]) {
+            revert AssetIdAlreadyRegistered();
+        }
         assetIdIsRegistered[_baseTokenAssetId] = true;
 
         emit BaseTokenAssetIdRegistered(_baseTokenAssetId);
@@ -293,8 +312,12 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
 
         address sender = L1_CHAIN_ID == block.chainid ? msg.sender : AddressAliasHelper.undoL1ToL2Alias(msg.sender);
         // This method can be accessed by l1CtmDeployer only
-        require(sender == address(l1CtmDeployer), "BH: not ctm deployer");
-        require(chainTypeManagerIsRegistered[_assetAddress], "CTM not registered");
+        if (sender != address(l1CtmDeployer)) {
+            revert NotStmDeployer();
+        }
+        if (!chainTypeManagerIsRegistered[_assetAddress]) {
+            revert StmNotRegistered();
+        }
 
         bytes32 assetInfo = keccak256(abi.encode(L1_CHAIN_ID, sender, _additionalData));
         ctmAssetIdToAddress[assetInfo] = _assetAddress;
@@ -330,7 +353,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
         if (_chainId > type(uint48).max) {
             revert ChainIdTooBig();
         }
-        require(_chainId != block.chainid, "BH: chain id must not match current chainid");
+        if (_chainId == block.chainid) {
+            revert ChainIdMustNotMatchCurrentChainId();
+        }
         if (_chainTypeManager == address(0)) {
             revert ZeroAddress();
         }
@@ -342,7 +367,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
             revert CTMNotRegistered();
         }
 
-        require(assetIdIsRegistered[_baseTokenAssetId], "BH: asset id not registered");
+        if (!assetIdIsRegistered[_baseTokenAssetId]) {
+            revert AssetIdNotRegistered();
+        }
 
         if (address(sharedBridge) == address(0)) {
             revert SharedBridgeNotSet();
@@ -422,7 +449,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
 
     function ctmAssetIdFromChainId(uint256 _chainId) public view override returns (bytes32) {
         address ctmAddress = chainTypeManager[_chainId];
-        require(ctmAddress != address(0), "chain id not registered");
+        if (ctmAddress == address(0)) {
+            revert ChainIdNotRegistered();
+        }
         return ctmAssetId(chainTypeManager[_chainId]);
     }
 
@@ -496,10 +525,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
     function requestL2TransactionTwoBridges(
         L2TransactionRequestTwoBridgesOuter calldata _request
     ) external payable override nonReentrant whenNotPaused onlyL1 returns (bytes32 canonicalTxHash) {
-        require(
-            _request.secondBridgeAddress > BRIDGEHUB_MIN_SECOND_BRIDGE_ADDRESS,
-            "BH: second bridge address too low"
-        ); // to avoid calls to precompiles
+        if (_request.secondBridgeAddress <= BRIDGEHUB_MIN_SECOND_BRIDGE_ADDRESS) {
+            revert SecondBridgeAddressTooLow();
+        }
 
         {
             bytes32 tokenAssetId = baseTokenAssetId[_request.chainId];
@@ -580,7 +608,9 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
         bytes32 _canonicalTxHash,
         uint64 _expirationTimestamp
     ) external override onlySettlementLayerRelayedSender {
-        require(L1_CHAIN_ID != block.chainid, "BH: not in sync layer mode");
+        if (L1_CHAIN_ID == block.chainid) {
+            revert NotInSyncLayerMode();
+        }
         address hyperchain = hyperchainMap.get(_chainId);
         IZkSyncHyperchain(hyperchain).bridgehubRequestL2TransactionOnGateway(
             _transaction,
@@ -684,16 +714,27 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
         address _prevMsgSender,
         bytes calldata _data
     ) external payable override onlyAssetRouter whenMigrationsNotPaused returns (bytes memory bridgehubMintData) {
-        require(whitelistedSettlementLayers[_settlementChainId], "BH: SL not whitelisted");
+        if (!whitelistedSettlementLayers[_settlementChainId]) {
+            revert SLNotWhitelisted();
+        }
+
 
         BridgehubBurnCTMAssetData memory bridgeData = abi.decode(_data, (BridgehubBurnCTMAssetData));
-        require(_assetId == ctmAssetIdFromChainId(bridgeData.chainId), "BH: assetInfo 1");
-        require(settlementLayer[bridgeData.chainId] == block.chainid, "BH: not current SL");
+        if (_assetId != ctmAssetIdFromChainId(bridgeData.chainId)) {
+            revert AssetInfo1();
+        }
+        if (settlementLayer[bridgeData.chainId] != block.chainid) {
+            revert NotCurrentSL();
+        }
         settlementLayer[bridgeData.chainId] = _settlementChainId;
 
         address hyperchain = hyperchainMap.get(bridgeData.chainId);
-        require(hyperchain != address(0), "BH: hyperchain not registered");
-        require(_prevMsgSender == IZkSyncHyperchain(hyperchain).getAdmin(), "BH: incorrect sender");
+        if (hyperchain == address(0)) {
+            revert HyperchainNotRegistered();
+        }
+        if (_prevMsgSender != IZkSyncHyperchain(hyperchain).getAdmin()) {
+            revert IncorrectSender();
+        }
 
         bytes memory ctmMintData = IChainTypeManager(chainTypeManager[bridgeData.chainId]).forwardedBridgeBurn(
             bridgeData.chainId,
@@ -723,8 +764,12 @@ contract Bridgehub is IBridgehub, ReentrancyGuard, Ownable2StepUpgradeable, Paus
         BridgehubMintCTMAssetData memory bridgeData = abi.decode(_bridgehubMintData, (BridgehubMintCTMAssetData));
 
         address ctm = ctmAssetIdToAddress[_assetId];
-        require(ctm != address(0), "BH: assetInfo 2");
-        require(settlementLayer[bridgeData.chainId] != block.chainid, "BH: already current SL");
+        if (ctm == address(0)) {
+            revert AssetInfo2();
+        }
+        if (settlementLayer[bridgeData.chainId] == block.chainid) {
+            revert AlreadyCurrentSL();
+        }
 
         settlementLayer[bridgeData.chainId] = block.chainid;
         chainTypeManager[bridgeData.chainId] = ctm;
