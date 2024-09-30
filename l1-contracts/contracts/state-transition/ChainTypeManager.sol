@@ -19,6 +19,7 @@ import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable-v4/ac
 import {ReentrancyGuard} from "../common/ReentrancyGuard.sol";
 import {L2_TO_L1_LOG_SERIALIZE_SIZE, DEFAULT_L2_LOGS_TREE_ROOT_HASH, EMPTY_STRING_KECCAK} from "../common/Config.sol";
 import {Unauthorized, ZeroAddress, HashMismatch, GenesisUpgradeZero, GenesisBatchHashZero, GenesisIndexStorageZero, GenesisBatchCommitmentZero} from "../common/L1ContractErrors.sol";
+import {InitialForceDeploymentMismatch, ZeroChainId, SyncLayerNotRegistered, AdminZero, OutdatedProtocolVersion} from "./L1StateTransitionErrors.sol";
 import {SemVer} from "../common/libraries/SemVer.sol";
 import {IBridgehub} from "../bridgehub/IBridgehub.sol";
 
@@ -344,13 +345,11 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
     /// @notice deploys a full set of chains contracts
     /// @param _chainId the chain's id
     /// @param _baseTokenAssetId the base token asset id used to pay for gas fees
-    /// @param _sharedBridge the shared bridge address, used as base token bridge
     /// @param _admin the chain's admin address
     /// @param _diamondCut the diamond cut data that initializes the chains Diamond Proxy
     function _deployNewChain(
         uint256 _chainId,
         bytes32 _baseTokenAssetId,
-        address _sharedBridge,
         address _admin,
         bytes memory _diamondCut
     ) internal returns (address zkChainAddress) {
@@ -383,7 +382,6 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
             bytes32(uint256(uint160(_admin))),
             bytes32(uint256(uint160(validatorTimelock))),
             _baseTokenAssetId,
-            bytes32(uint256(uint160(_sharedBridge))),
             storedBatchZero,
             diamondCut.initCalldata
         );
@@ -400,7 +398,6 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
     /// @notice called by Bridgehub when a chain registers
     /// @param _chainId the chain's id
     /// @param _baseTokenAssetId the base token asset id used to pay for gas fees
-    /// @param _assetRouter the shared bridge address, used as base token bridge
     /// @param _admin the chain's admin address
     /// @param _initData the diamond cut data, force deployments and factoryDeps encoded
     /// @param _factoryDeps the factory dependencies used for the genesis upgrade
@@ -408,7 +405,6 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
     function createNewChain(
         uint256 _chainId,
         bytes32 _baseTokenAssetId,
-        address _assetRouter,
         address _admin,
         bytes calldata _initData,
         bytes[] calldata _factoryDeps
@@ -416,12 +412,14 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
         (bytes memory _diamondCut, bytes memory _forceDeploymentData) = abi.decode(_initData, (bytes, bytes));
 
         // solhint-disable-next-line func-named-parameters
-        zkChainAddress = _deployNewChain(_chainId, _baseTokenAssetId, _assetRouter, _admin, _diamondCut);
+        zkChainAddress = _deployNewChain(_chainId, _baseTokenAssetId, _admin, _diamondCut);
 
         {
             // check input
             bytes32 forceDeploymentHash = keccak256(abi.encode(_forceDeploymentData));
-            require(forceDeploymentHash == initialForceDeploymentHash, "CTM: initial force deployment mismatch");
+            if (forceDeploymentHash != initialForceDeploymentHash) {
+                revert InitialForceDeploymentMismatch(forceDeploymentHash, initialForceDeploymentHash);
+            }
         }
         // genesis upgrade, deploys some contracts, sets chainId
         IAdmin(zkChainAddress).genesisUpgrade(
@@ -440,10 +438,14 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
     /// @param _newSettlementLayerChainId the chainId of the chain
     /// @param _isWhitelisted whether the chain is whitelisted
     function registerSettlementLayer(uint256 _newSettlementLayerChainId, bool _isWhitelisted) external onlyOwner {
-        require(_newSettlementLayerChainId != 0, "Bad chain id");
+        if (_newSettlementLayerChainId == 0) {
+            revert ZeroChainId();
+        }
 
-        // Currently, we require that the sync layer is deployed by the same CTM.
-        require(getZKChain(_newSettlementLayerChainId) != address(0), "CTM: sync layer not registered");
+        // Currently, we require that the sync layer is deployed by the same STM.
+        if (getZKChain(_newSettlementLayerChainId) == address(0)) {
+            revert SyncLayerNotRegistered();
+        }
 
         IBridgehub(BRIDGE_HUB).registerSettlementLayer(_newSettlementLayerChainId, _isWhitelisted);
     }
@@ -456,14 +458,18 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
         bytes calldata _data
     ) external view override onlyBridgehub returns (bytes memory ctmForwardedBridgeMintData) {
         // Note that the `_diamondCut` here is not for the current chain, for the chain where the migration
-        // happens. The correctness of it will be checked on the CTM on the new settlement layer.
+        // happens. The correctness of it will be checked on the STM on the new settlement layer.
         (address _newSettlementLayerAdmin, bytes memory _diamondCut) = abi.decode(_data, (address, bytes));
-        require(_newSettlementLayerAdmin != address(0), "CTM: admin zero");
+        if (_newSettlementLayerAdmin == address(0)) {
+            revert AdminZero();
+        }
 
         // We ensure that the chain has the latest protocol version to avoid edge cases
         // related to different protocol version support.
         address zkChain = getZKChain(_chainId);
-        require(IZKChain(zkChain).getProtocolVersion() == protocolVersion, "CTM: outdated pv");
+        if (IZKChain(zkChain).getProtocolVersion() != protocolVersion) {
+            revert OutdatedProtocolVersion(IZKChain(zkChain).getProtocolVersion(), protocolVersion);
+        }
 
         return
             abi.encode(
@@ -488,11 +494,12 @@ contract ChainTypeManager is IChainTypeManager, ReentrancyGuard, Ownable2StepUpg
 
         // We ensure that the chain has the latest protocol version to avoid edge cases
         // related to different protocol version support.
-        require(_protocolVersion == protocolVersion, "CTM, outdated pv");
+        if (_protocolVersion != protocolVersion) {
+            revert OutdatedProtocolVersion(_protocolVersion, protocolVersion);
+        }
         chainAddress = _deployNewChain({
             _chainId: _chainId,
             _baseTokenAssetId: _baseTokenAssetId,
-            _sharedBridge: address(IBridgehub(BRIDGE_HUB).sharedBridge()),
             _admin: _admin,
             _diamondCut: _diamondCut
         });
