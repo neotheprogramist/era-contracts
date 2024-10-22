@@ -22,6 +22,7 @@ pub(crate) enum TestVmHook {
     TestCount(u32),
     // 104 - test start.
     TestStart(String),
+    RequestedMessage(u32)
 }
 
 // Number of 32-bytes slots that are reserved for test hooks (passing information between bootloader test code and the VM).
@@ -107,7 +108,7 @@ impl TestVmHook {
             102 => Self::RequestedAssert(test_hook_as_string(vm_hook_params[0])),
             103 => Self::TestCount(vm_hook_params[0].as_u32()),
             104 => Self::TestStart(test_hook_as_string(vm_hook_params[0])),
-
+            105 => Self::RequestedMessage(vm_hook_params[0].as_u32()),
             _ => Self::NoHook,
         }
     }

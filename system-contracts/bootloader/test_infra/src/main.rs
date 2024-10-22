@@ -179,7 +179,7 @@ fn execute_internal_bootloader_test() {
                     )),
                     ExecutionResult::Halt { reason } => {
                         if let Halt::UnexpectedVMBehavior(reason) = reason {
-                            let reason = reason.strip_prefix("Assertion error: ").unwrap();
+                            let reason = reason.strip_prefix("Assertion error: ").unwrap_or_else(|| reason);
                             if reason == requested_assert {
                                 Ok(())
                             } else {
