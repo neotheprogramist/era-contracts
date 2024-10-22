@@ -468,15 +468,15 @@ function TEST_getGasPrice() {
 }
 
 function TEST_getGasPrice_maxPriorityFeeGreaterThenMaxFee() {
-    testing_testWillFailWith("Max priority fee greater than max fee")
+    testing_testError(13)
 
-    //getGasPrice(4, 5)
+    getGasPrice(4, 5)
 }
 
 function TEST_getGasPrice_baseFeeGreaterThenMaxFee() {
-    testing_testWillFailWith("Base fee greater than max fee")
-    let baseFee := basefee()
-    getGasPrice(baseFee, baseFee)
+    testing_testError(14)
+    
+    getGasPrice(2, 1)
 }
 
 function TEST_getRawCodeHashSuccessTrue() {

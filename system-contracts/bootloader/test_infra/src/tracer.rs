@@ -61,7 +61,15 @@ impl<S, H: HistoryMode> DynTracer<S, SimpleMemory<H>> for BootloaderTestTracer {
         if let TestVmHook::RequestedAssert(requested_assert) = &hook {
             let _ = self.requested_assert.set(requested_assert.clone());
         }
+        if let TestVmHook::RequestedMessage(err_code) = &hook {
+            let err_message = match err_code {
+                13 => "Max priority fee greater than max fee",
+                14 => "Base fee greater than max fee"
+                _ => "",
+            };
 
+            let _ = self.requested_assert.set(err_message.to_owned());
+        }
         if let TestVmHook::TestStart(test_name) = &hook {
             self.test_name
                 .set(test_name.clone())
