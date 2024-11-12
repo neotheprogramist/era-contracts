@@ -110,130 +110,26 @@ function TEST_systemLogKeys() {
     testing_assertEq(protocolUpgradeTxHashKey, 13, "Invalid protocol upgrade txn hash log key")
 }
 
-// function processTx(
-//                 txDataOffset,
-//                 resultPtr,
-//                 transactionIndex,
-//                 isETHCall,
-//                 gasPerPubdata
-//             ) {
-//                 // We set the L2 block info for this particular transaction
-//                 setL2Block(transactionIndex)
+function TEST_ensurePayment() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasPrice := basefee()
 
-//                 let innerTxDataOffset := add(txDataOffset, 32)
+    ensurePayment(txDataOffset, gasPrice)
 
-//                 // By default we assume that the transaction has failed.
-//                 mstore(resultPtr, 0)
+}
 
-//                 let userProvidedPubdataPrice := getGasPerPubdataByteLimit(innerTxDataOffset)
-//                 debugLog("userProvidedPubdataPrice:", userProvidedPubdataPrice)
+function TEST_mintEther() {
+    let to := BOOTLOADER_FORMAL_ADDR()
+    let amount := 20
+    let useNearCallPanic := 1
+    let bootloaderBalance := balance(BOOTLOADER_FORMAL_ADDR())
 
-//                 debugLog("gasPerPubdata:", gasPerPubdata)
+    mintEther(to, amount, useNearCallPanic)
 
-//                 switch getTxType(innerTxDataOffset)
-//                     case 254 {
-//                         // This is an upgrade transaction.
-//                         // Protocol upgrade transactions are processed totally in the same manner as the normal L1->L2 transactions,
-//                         // the only difference are:
-//                         // - They must be the first one in the batch
-//                         // - They have a different type to prevent tx hash collisions and preserve the expectation that the
-//                         // L1->L2 transactions have priorityTxId inside them.
-//                         if transactionIndex {
-//                             assertionError("Protocol upgrade tx not first")
-//                         }
+    testing_assertEq(amount, sub(balance(BOOTLOADER_FORMAL_ADDR()), bootloaderBalance), "Mint ether failed")
+}
 
-//                         // This is to be called in the event that the L1 Transaction is a protocol upgrade txn.
-//                         // Since this is upgrade transactions, we are okay that the gasUsed by the transaction will
-//                         // not cover this additional hash computation
-//                         let canonicalL1TxHash := getCanonicalL1TxHash(txDataOffset)
-//                         sendToL1Native(true, protocolUpgradeTxHashKey(), canonicalL1TxHash)
-
-//                         processL1Tx(txDataOffset, resultPtr, transactionIndex, userProvidedPubdataPrice, false)
-//                     }
-//                     case 255 {
-//                         // This is an L1->L2 transaction.
-//                         processL1Tx(txDataOffset, resultPtr, transactionIndex, userProvidedPubdataPrice, true)
-//                     }
-//                     default {
-//                         // The user has not agreed to this pubdata price
-//                         if lt(userProvidedPubdataPrice, gasPerPubdata) {
-//                             revertWithReason(UNACCEPTABLE_GAS_PRICE_ERR_CODE(), 0)
-//                         }
-
-//                         <!-- @if BOOTLOADER_TYPE=='proved_batch' -->
-//                         processL2Tx(txDataOffset, resultPtr, transactionIndex, gasPerPubdata)
-//                         <!-- @endif -->
-
-//                         <!-- @if BOOTLOADER_TYPE=='playground_batch' -->
-//                         switch isETHCall
-//                             case 1 {
-//                                 let gasLimitForTx, reservedGas := getGasLimitForTx(
-//                                     innerTxDataOffset,
-//                                     transactionIndex,
-//                                     gasPerPubdata,
-//                                     L2_TX_INTRINSIC_GAS(),
-//                                     L2_TX_INTRINSIC_PUBDATA()
-//                                 )
-
-//                                 let nearCallAbi := getNearCallABI(gasLimitForTx)
-//                                 checkEnoughGas(gasLimitForTx)
-
-//                                 if iszero(gasLimitForTx) {
-//                                     // We disallow providing 0 gas limit for an eth call transaction.
-//                                     // Note, in case it is 0 `ZKSYNC_NEAR_CALL_ethCall` will get the entire
-//                                     // gas of the bootloader.
-//                                     revertWithReason(
-//                                         ETH_CALL_ERR_CODE(),
-//                                         0
-//                                     )
-//                                 }
-
-//                                 ZKSYNC_NEAR_CALL_ethCall(
-//                                     nearCallAbi,
-//                                     txDataOffset,
-//                                     resultPtr,
-//                                     reservedGas,
-//                                     gasPerPubdata
-//                                 )
-//                             }
-//                             default {
-//                                 processL2Tx(txDataOffset, resultPtr, transactionIndex, gasPerPubdata)
-//                             }
-//                         <!-- @endif -->
-//                     }
-//     }
-
-    function TEST_ensurePayment() {
-        let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
-        let txDataOffset := mload(add(txPtr, 32))
-        let gasPrice := basefee()
-
-        ensurePayment(txDataOffset, gasPrice)
-
-    }
-
-    function TEST_mintEther() {
-        let to := BOOTLOADER_FORMAL_ADDR()
-        let amount := 20
-        let useNearCallPanic := 1
-        let bootloaderBalance := balance(BOOTLOADER_FORMAL_ADDR())
-
-        mintEther(to, amount, useNearCallPanic)
-
-        testing_assertEq(amount, sub(balance(BOOTLOADER_FORMAL_ADDR()), bootloaderBalance), "Mint ether failed")
-    }
-
-// processL1Tx
-
-// l1TxPreparation
-
-// processL2Tx
-
-// l2TxValidation
-
-// l2TxExecution
-
-// refundCurrentL2Transaction
 
 function TEST_directETHTransferRevert() {
     let amount := 10
@@ -287,7 +183,12 @@ function TEST_saveTxHashes() {
     testing_assertEq(mload(CURRENT_L2_TX_HASHES_BEGIN_BYTE()), 0xcc688b06478c77de5727148fa48a7b5db3be430af5270e024cedcfe466cfa752, "Invalid tx hash")
 }
 
-// accountValidateTx
+function TEST_accountValidateTx() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+
+    accountValidateTx(txDataOffset)
+}
 
 function TEST_markFactoryDepsForTxRevert() {
     let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
@@ -506,10 +407,83 @@ function TEST_validateAbiEncodingInvalidReservedDynamicPtr() {
     validateAbiEncoding(txDataOffset)
 }
 
-function TEST_validateTypedTxStructure() {
+function TEST_validateTypedTxStructureCase0() {
     let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
     let txDataOffset := mload(add(txPtr, 32))
     let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 0)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase254() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 254)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase255() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 255)
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureRevert() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 256)
+
+    testing_testWillFailWith("Unknown tx type")
 
     validateTypedTxStructure(innerTxDataOffset)
 }
@@ -699,3 +673,560 @@ function TEST_validateTypedTxStructurePaymasterInput() {
 
     validateTypedTxStructure(innerTxDataOffset)
 }
+
+function TEST_validateTypedTxStructureCase1EIP1559() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000020000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    testing_testWillFailWith("EIP1559 params wrong")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1GasPerPubdataByteLimit() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 128)
+    let gasPerPubdataByteLimit := 50001
+    mstore(ptr, gasPerPubdataByteLimit)
+
+    testing_testWillFailWith("Gas per pubdata is wrong")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1Paymaster() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 224)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("paymaster non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1Reserved0() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 320)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved0 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1Reserved1() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 352)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved1 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1Reserved2() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 384)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved2 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1Reserved3() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := add(innerTxDataOffset, 416)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved3 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1FactoryDeps() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := getFactoryDepsPtr(innerTxDataOffset)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("factory deps non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase1PaymasterInput() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 1)
+
+    let ptr1 := add(innerTxDataOffset, 160)
+    let maxFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr1, maxFeePerGas)
+
+    let ptr2 := add(innerTxDataOffset, 192)
+    let maxPriorityFeePerGas := 0x0000000000000000000000000000000010000000000000000000000000000000
+    mstore(ptr2, maxPriorityFeePerGas)
+
+    let ptr := getPaymasterInputPtr(innerTxDataOffset)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("paymasterInput non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2GasPerPubdataByteLimit() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 128)
+    let gasPerPubdataByteLimit := 50001
+    mstore(ptr, gasPerPubdataByteLimit)
+
+    testing_testWillFailWith("Gas per pubdata is wrong")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2Paymaster() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 224)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("paymaster non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2Reserved0() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 320)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved0 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2Reserved1() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 352)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved1 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2Reserved2() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 384)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved2 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2Reserved3() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := add(innerTxDataOffset, 416)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved3 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2FactoryDeps() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := getFactoryDepsPtr(innerTxDataOffset)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("factory deps non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase2PaymasterInput() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 2)
+
+    let ptr := getPaymasterInputPtr(innerTxDataOffset)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("paymasterInput non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113Paymaster() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr1 := add(innerTxDataOffset, 224)
+    mstore(ptr1, 0x0000000000000000000000000000000000000fff)
+
+    testing_testWillFailWith("paymaster in kernel space")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113PaymasterInput() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr1 := add(innerTxDataOffset, 224)
+    mstore(ptr1, 0)
+
+    let ptr := getPaymasterInputPtr(innerTxDataOffset)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("paymasterInput non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113Reserved0() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr := add(innerTxDataOffset, 320)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved0 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113Reserved1() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr := add(innerTxDataOffset, 352)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved1 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113Reserved2() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr := add(innerTxDataOffset, 384)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved2 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase113Reserved3() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 113)
+
+    let ptr := add(innerTxDataOffset, 416)
+    mstore(ptr, 1)
+
+    testing_testWillFailWith("reserved3 non zero")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_validateTypedTxStructureCase255From() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let innerTxDataOffset := add(txDataOffset, 32)
+    mstore(innerTxDataOffset, 255)
+
+    let ptr := add(innerTxDataOffset, 32)
+    mstore(ptr, 0x0000000000000000000000000000000000000fff)
+
+    testing_testWillFailWith("from in kernel space")
+
+    validateTypedTxStructure(innerTxDataOffset)
+}
+
+function TEST_l1TxPreparation() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasPerPubdata := 5000
+    let basePubdataSpent := 10
+
+    let result := l1TxPreparation(txDataOffset, gasPerPubdata, basePubdataSpent)
+
+    testing_assertEq(result, getCanonicalL1TxHash(txDataOffset), "Invalid canonical L1 tx hash")
+}
+
+function TEST_l2TxValidationRevert1() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasLimitForTx := 1
+    let gasPrice := 0
+    let basePubdataSpent := 0
+    let reservedGas := 0
+    let gasPerPubdata := 0
+
+    //testing_testWillFailWith("Not enough gas for transaction validation")
+
+    l2TxValidation(txDataOffset, gasLimitForTx, gasPrice, basePubdataSpent, reservedGas, gasPerPubdata)
+}
+
+function TEST_l2TxValidationRevert2() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasLimitForTx := 0
+    let gasPrice := 0
+    let basePubdataSpent := 0
+    let reservedGas := 0
+    let gasPerPubdata := 0
+
+    //testing_testWillFailWith("Not enough gas for transaction validation")
+
+    l2TxValidation(txDataOffset, gasLimitForTx, gasPrice, basePubdataSpent, reservedGas, gasPerPubdata)
+}
+
+function TEST_l2TxValidation() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasLimitForTx := 0
+    let gasPrice := 0
+    let basePubdataSpent := 0
+    let reservedGas := 0
+    let gasPerPubdata := 0
+
+    testing_log("1", getPubdataCounter())
+    testing_log("A", getErgsSpentForPubdata(basePubdataSpent, gasPerPubdata))
+    testing_log("2", getPubdataCounter())
+
+    //testing_testWillFailWith("Not enough gas for transaction validation")
+
+    l2TxValidation(txDataOffset, gasLimitForTx, gasPrice, basePubdataSpent, reservedGas, gasPerPubdata)
+}
+
+function TEST_l2TxExecution() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let gasLeft := 0
+    let basePubdataSpent := 100
+    let reservedGas := 100
+    let gasPerPubdata := 1
+
+    let result := l2TxExecution(txDataOffset, gasLeft, basePubdataSpent, reservedGas, gasPerPubdata)
+
+    testing_assertEq(result, 0, "L2 tx execution failed")
+}
+
+// processTx
+
+function TEST_processL1Tx() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let resultPtr := RESULT_START_PTR()
+    let transactionIndex := 1
+    let gasPerPubdata := 1
+    let isPriorityOp := true
+
+    let innerTxDataOffset := add(txDataOffset, 32)
+    let ptr := add(innerTxDataOffset, 320)
+    mstore(ptr, 259461751000000)
+
+    processL1Tx(txDataOffset, resultPtr, transactionIndex, gasPerPubdata, isPriorityOp)
+
+    testing_assertEq(1, mload(resultPtr), "Process L1 tx failed")
+}
+
+function TEST_processL1TxTooLowETH() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let resultPtr := RESULT_START_PTR()
+    let transactionIndex := 1
+    let gasPerPubdata := 1
+    let isPriorityOp := true
+
+    testing_testWillFailWith("deposited eth too low")
+
+    processL1Tx(txDataOffset, resultPtr, transactionIndex, gasPerPubdata, isPriorityOp)
+}
+
+function TEST_processL1TxFailed() {
+    let txPtr := TX_DESCRIPTION_BEGIN_BYTE()
+    let txDataOffset := mload(add(txPtr, 32))
+    let resultPtr := RESULT_START_PTR()
+    let transactionIndex := 1
+    let gasPerPubdata := 1
+    let isPriorityOp := false
+
+    let innerTxDataOffset := add(txDataOffset, 32)
+
+    let gasLimitForTx, reservedGas := getGasLimitForTx(
+        innerTxDataOffset,
+        transactionIndex,
+        gasPerPubdata,
+        L1_TX_INTRINSIC_L2_GAS(),
+        L1_TX_INTRINSIC_PUBDATA()
+    )
+
+    let basePubdataSpent := getPubdataCounter()
+    let gasUsedOnPreparation := 0
+    let canonicalL1TxHash := 0
+
+    canonicalL1TxHash, gasUsedOnPreparation := l1TxPreparation(txDataOffset, gasPerPubdata, basePubdataSpent)
+
+    testing_log("A", gasLimitForTx)
+    testing_log("B", gasUsedOnPreparation)
+
+    let gasLimit := getGasLimit(innerTxDataOffset)
+    let refund := getOperatorRefundForTx(transactionIndex)
+
+    testing_log("C", gasLimit)
+    testing_log("D", refund)
+
+    let ptr := add(innerTxDataOffset, 320)
+    mstore(ptr, 259461751000000)
+
+    processL1Tx(txDataOffset, resultPtr, transactionIndex, gasPerPubdata, isPriorityOp)
+
+    testing_assertEq(1, mload(resultPtr), "Process L1 tx failed")
+}
+
+// processL2Tx
+
+// refundCurrentL2Transaction
